@@ -20,7 +20,7 @@ export function Navbar() {
               Patient Login
             </Link>
             <Link to="/doctor/signup" className="px-4 py-2 font-semibold text-white bg-slate-900 hover:bg-slate-800 shadow-sm rounded-xl transition-colors">
-              Provider Login
+              Doctor Login
             </Link>
           </div>
         </div>

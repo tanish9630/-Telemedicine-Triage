@@ -1,196 +1,200 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Stethoscope, ChevronRight, Loader2, Mail, Lock, User, FileText, Calendar as CalendarIcon, MapPin } from 'lucide-react';
+import { ShieldCheck, Stethoscope, ChevronRight, Loader2, Mail, Lock, User, FileText, Calendar as CalendarIcon, MapPin, Activity, BarChart3, Users, Video, CheckCircle2, Heart } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 const medicalCouncils = [
-  "Andhra Pradesh Medical Council",
-  "Arunachal Pradesh Medical Council",
-  "Assam Medical Council",
-  "Bihar Medical Council",
-  "Delhi Medical Council",
-  "Gujarat Medical Council",
-  "Haryana Medical Council",
-  "Himachal Pradesh Medical Council",
-  "Jammu & Kashmir Medical Council",
-  "Jharkhand Medical Council",
-  "Karnataka Medical Council",
-  "Kerala Medical Council",
-  "Madhya Pradesh Medical Council",
-  "Maharashtra Medical Council",
-  "Orissa Council of Medical Registration",
-  "Punjab Medical Council",
-  "Rajasthan Medical Council",
-  "Tamil Nadu Medical Council",
-  "Uttar Pradesh Medical Council",
-  "West Bengal Medical Council"
+  "Andhra Pradesh Medical Council", "Arunachal Pradesh Medical Council", "Assam Medical Council",
+  "Bihar Medical Council", "Delhi Medical Council", "Gujarat Medical Council",
+  "Haryana Medical Council", "Himachal Pradesh Medical Council", "Jammu & Kashmir Medical Council",
+  "Jharkhand Medical Council", "Karnataka Medical Council", "Kerala Medical Council",
+  "Madhya Pradesh Medical Council", "Maharashtra Medical Council", "Orissa Council of Medical Registration",
+  "Punjab Medical Council", "Rajasthan Medical Council", "Tamil Nadu Medical Council",
+  "Uttar Pradesh Medical Council", "West Bengal Medical Council"
+];
+
+const features = [
+  { icon: <BarChart3 className="w-5 h-5" />, title: "Real-Time Analytics", desc: "Live dashboards with patient flow, triage stats, and consultation metrics." },
+  { icon: <Video className="w-5 h-5" />, title: "HD Video Consults", desc: "Secure Agora-powered video calls with screen sharing." },
+  { icon: <Activity className="w-5 h-5" />, title: "AI-Powered Triage", desc: "Patients are pre-screened and prioritized by our AI before reaching you." },
+  { icon: <Users className="w-5 h-5" />, title: "Patient Management", desc: "Complete patient records, vitals history, and appointment scheduling." },
 ];
 
 export function DoctorAuth() {
   const [isLogin, setIsLogin] = useState(true);
-  const [isVerifying, setIsVerifying] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [regNumber, setRegNumber] = useState('');
+  const [council, setCouncil] = useState('');
+  const [regYear, setRegYear] = useState('');
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLogin) {
-      navigate('/doctor/dashboard');
-    } else {
-      setIsVerifying(true);
-      // Simulate NMC Indian Medical Register verification delay
-      setTimeout(() => {
-        setIsVerifying(false);
+    setError('');
+    setLoading(true);
+    try {
+      if (isLogin) {
+        // --- SIGN IN ---
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) throw signInError;
+        // Verify it's a doctor profile
+        const { data: profile } = await supabase.from('profiles').select('full_name, role').eq('id', data.user!.id).single();
+        if (profile?.role !== 'doctor') throw new Error('This account is not registered as a doctor.');
+        localStorage.setItem('doctorName', profile.full_name || email);
         navigate('/doctor/dashboard');
-      }, 2500);
+      } else {
+        // --- SIGN UP ---
+        const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
+        if (signUpError) throw signUpError;
+        await supabase.from('profiles').insert({
+          id: data.user!.id,
+          role: 'doctor',
+          full_name: name,
+          registration_number: regNumber,
+          specialization: council,
+          is_verified: false,
+        });
+        localStorage.setItem('doctorName', name);
+        navigate('/doctor/dashboard');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans relative overflow-hidden">
-      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-200/40 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-200/30 blur-[120px] pointer-events-none" />
-      
-      <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-        <div className="flex justify-center">
-          <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-600/30 mb-4">
-            <Stethoscope className="w-8 h-8 text-white" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 flex font-sans relative overflow-hidden">
+      <div className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-300/20 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-15%] right-[-10%] w-[50%] h-[50%] rounded-full bg-purple-300/20 blur-[120px] pointer-events-none" />
+
+      {/* Left Panel */}
+      <div className="hidden lg:flex flex-col justify-center w-1/2 p-16 relative z-10">
+        <div className="flex items-center mb-8">
+          <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/30 mr-3">
+            <Stethoscope className="w-7 h-7 text-white" />
           </div>
+          <span className="text-2xl font-bold text-slate-900">CareConnect AI</span>
+          <span className="ml-2 text-xs bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-full">DOCTOR</span>
         </div>
-        <h2 className="mt-2 text-center text-3xl font-bold tracking-tight text-slate-900">
-          {isLogin ? 'Provider Portal Login' : 'Provider Application'}
-        </h2>
-        <p className="mt-3 text-center text-sm text-slate-500">
-          {isLogin ? 'Welcome back, Dr.' : 'Join the CareConnect AI network'}
+        <h1 className="text-4xl font-bold text-slate-900 leading-tight mb-4">
+          Smarter Practice, <br/><span className="text-indigo-600">Better Patient Outcomes</span>
+        </h1>
+        <p className="text-slate-500 text-lg mb-10 max-w-md">
+          Join India's leading telemedicine network. Access AI-triaged patients, real-time analytics, and seamless video consultations — all verified through the NMC Indian Medical Register.
         </p>
+        <div className="grid grid-cols-2 gap-5">
+          {features.map((f, i) => (
+            <div key={i} className="bg-white/70 backdrop-blur-md p-5 rounded-2xl border border-white shadow-sm hover:shadow-md transition-shadow">
+              <div className="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center mb-3">{f.icon}</div>
+              <h3 className="font-bold text-slate-800 text-sm mb-1">{f.title}</h3>
+              <p className="text-slate-500 text-xs">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-10 flex items-center space-x-4 text-sm text-slate-400">
+          <div className="flex items-center space-x-1.5"><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span><strong className="text-slate-600">2,400+</strong> Verified Doctors</span></div>
+          <div className="flex items-center space-x-1.5"><Heart className="w-4 h-4 text-rose-500" /><span><strong className="text-slate-600">50K+</strong> Patients Served</span></div>
+        </div>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-xl relative z-10">
-        <div className="bg-white py-8 px-4 shadow-[0_8px_30px_rgb(99,102,241,0.08)] sm:rounded-3xl sm:px-10 border border-slate-100">
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            
-            {/* Common fields: Email & Password */}
+      {/* Right Panel */}
+      <div className="flex-1 flex items-center justify-center p-8 relative z-10">
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl shadow-slate-200/60 p-10 border border-slate-100 max-h-[95vh] overflow-y-auto">
+          <div className="lg:hidden flex items-center mb-6">
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center mr-3 shadow-sm"><Stethoscope className="w-6 h-6 text-white" /></div>
+            <span className="text-xl font-bold text-slate-900">CareConnect AI</span>
+          </div>
+
+          <h2 className="text-2xl font-bold text-slate-900 mb-1">
+            {isLogin ? 'Doctor Portal Login' : 'Doctor Application'}
+          </h2>
+          <p className="text-slate-500 text-sm mb-8">
+            {isLogin ? 'Welcome back, Doctor. Your dashboard awaits.' : 'Apply to join the CareConnect AI network.'}
+          </p>
+
+          {error && (
+            <div className="mb-5 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm font-medium">
+              {error}
+            </div>
+          )}
+
+          <form className="space-y-5" onSubmit={handleSubmit}>
             {!isLogin && (
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Full Name (as per NMC)</label>
-                <div className="mt-1 relative rounded-md shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-slate-400" />
-                  </div>
-                  <input required type="text" className="block w-full pl-10 sm:text-sm border-slate-200 rounded-xl py-3 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 outline-none border transition-colors" placeholder="Dr. John Doe" />
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Full Name (as per NMC)</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-3.5 w-5 h-5 text-slate-400" />
+                  <input required type="text" value={name} onChange={e => setName(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all" placeholder="Dr. John Doe" />
                 </div>
               </div>
             )}
-
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Email address</label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-slate-400" />
-                </div>
-                <input required type="email" className="block w-full pl-10 sm:text-sm border-slate-200 rounded-xl py-3 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 outline-none border transition-colors" placeholder="doctor@hospital.com" />
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email Address</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-3.5 w-5 h-5 text-slate-400" />
+                <input required type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all" placeholder="doctor@hospital.com" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3.5 w-5 h-5 text-slate-400" />
+                <input required type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all" placeholder="••••••••" />
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Password</label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-slate-400" />
-                </div>
-                <input required type="password" className="block w-full pl-10 sm:text-sm border-slate-200 rounded-xl py-3 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 outline-none border transition-colors" placeholder="••••••••" />
-              </div>
-            </div>
-
-            {/* Verification Fields only for Signup */}
             {!isLogin && (
-              <div className="mt-8 pt-8 border-t border-slate-100 space-y-6">
+              <div className="pt-6 border-t border-slate-100 space-y-5">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 flex items-center mb-1">
-                    <ShieldCheck className="w-5 h-5 mr-2 text-indigo-600" /> 
-                    NMC Verification
-                  </h3>
-                  <p className="text-sm text-slate-500 mb-6">We verify all providers against the Indian Medical Register.</p>
+                  <h3 className="text-base font-bold text-slate-900 flex items-center mb-1"><ShieldCheck className="w-5 h-5 mr-2 text-indigo-600" /> NMC Verification</h3>
+                  <p className="text-xs text-slate-500 mb-4">We verify all doctors against the Indian Medical Register.</p>
                 </div>
-
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Registration Number</label>
-                  <div className="mt-1 relative rounded-md shadow-sm">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <FileText className="h-5 w-5 text-slate-400" />
-                    </div>
-                    <input required type="text" className="block w-full pl-10 sm:text-sm border-slate-200 rounded-xl py-3 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 outline-none border transition-colors" placeholder="e.g. 12345" />
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Registration Number</label>
+                  <div className="relative">
+                    <FileText className="absolute left-3 top-3.5 w-5 h-5 text-slate-400" />
+                    <input required type="text" value={regNumber} onChange={e => setRegNumber(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all" placeholder="e.g. 12345" />
                   </div>
                 </div>
-
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">State Medical Council</label>
-                  <div className="mt-1 relative rounded-md shadow-sm">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <MapPin className="h-5 w-5 text-slate-400" />
-                    </div>
-                    <select required className="block w-full pl-10 sm:text-sm border-slate-200 rounded-xl py-3 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 outline-none border transition-colors appearance-none text-slate-700">
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">State Medical Council</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3.5 w-5 h-5 text-slate-400" />
+                    <select required value={council} onChange={e => setCouncil(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none text-slate-700">
                       <option value="">Select Council</option>
-                      {medicalCouncils.map((council) => (
-                        <option key={council} value={council}>{council}</option>
-                      ))}
+                      {medicalCouncils.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                 </div>
-
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Year of Registration</label>
-                  <div className="mt-1 relative rounded-md shadow-sm">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <CalendarIcon className="h-5 w-5 text-slate-400" />
-                    </div>
-                    <input required type="number" min="1950" max="2026" className="block w-full pl-10 sm:text-sm border-slate-200 rounded-xl py-3 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 outline-none border transition-colors" placeholder="YYYY" />
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Year of Registration</label>
+                  <div className="relative">
+                    <CalendarIcon className="absolute left-3 top-3.5 w-5 h-5 text-slate-400" />
+                    <input required type="number" min="1950" max="2026" value={regYear} onChange={e => setRegYear(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all" placeholder="YYYY" />
                   </div>
                 </div>
               </div>
             )}
 
-            <div className="pt-4">
-              <button
-                type="submit"
-                disabled={isVerifying}
-                className="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                {isVerifying ? (
-                  <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Verifying with NMC Registry...
-                  </>
-                ) : (
-                  <>
-                    {isLogin ? 'Sign in to Dashboard' : 'Verify & Create Account'}
-                    {!isLogin && <ChevronRight className="w-4 h-4 ml-1" />}
-                  </>
-                )}
-              </button>
-            </div>
+            <button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-70 text-white font-semibold py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center">
+              {loading
+                ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" />{isLogin ? 'Signing in...' : 'Verifying with NMC Registry...'}</>
+                : <>{isLogin ? 'Sign in to Dashboard' : 'Verify & Create Account'}{!isLogin && <ChevronRight className="w-4 h-4 ml-1" />}</>
+              }
+            </button>
           </form>
 
-          <div className="mt-8">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-slate-500">
-                  {isLogin ? 'New to CareConnect?' : 'Already verified?'}
-                </span>
-              </div>
-            </div>
+          <div className="my-6 flex items-center"><div className="flex-1 h-px bg-slate-200" /><span className="px-3 text-xs text-slate-400">{isLogin ? 'New to CareConnect?' : 'Already verified?'}</span><div className="flex-1 h-px bg-slate-200" /></div>
 
-            <div className="mt-6">
-              <button
-                onClick={() => setIsLogin(!isLogin)}
-                disabled={isVerifying}
-                className="w-full flex justify-center py-3 px-4 border border-slate-300 rounded-xl shadow-sm bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                {isLogin ? 'Apply for Provider Access' : 'Sign in to existing account'}
-              </button>
-            </div>
-          </div>
+          <button onClick={() => { setIsLogin(!isLogin); setError(''); }} disabled={loading} className="w-full py-3 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
+            {isLogin ? 'Apply for Doctor Access' : 'Sign in to existing account'}
+          </button>
         </div>
       </div>
     </div>

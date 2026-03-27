@@ -9,12 +9,8 @@ app.use(cors());
 app.use(express.json());
 
 import dotenv from 'dotenv';
-import connectDB from './config/db.js';
 
 dotenv.config();
-
-// Connect to MongoDB
-connectDB();
 
 // Basic health check route
 app.get('/api/health', (req, res) => {

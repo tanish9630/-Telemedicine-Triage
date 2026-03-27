@@ -52,7 +52,7 @@ export function LandingPage() {
                 "NMC Verification",
                 "Schedule Management"
               ]}
-              actionText="Access Provider Portal"
+              actionText="Access Doctor Portal"
               linkTo="/doctor/signup"
               isPrimary={false}
             />
@@ -82,7 +82,7 @@ export function LandingPage() {
             <div>
               <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-6">AI-Driven Insights for Better Outcomes</h2>
               <p className="text-lg text-slate-600 mb-8 leading-relaxed">
-                CareConnect AI integrates advanced symptom checking with real-time provider availability. Patients get directed to the right level of care immediately, while practitioners receive pre-triaged case summaries before the consultation even begins.
+                CareConnect AI integrates advanced symptom checking with real-time doctor availability. Patients get directed to the right level of care immediately, while doctors receive pre-triaged case summaries before the consultation even begins.
               </p>
               <ul className="space-y-4">
                 {['Smart symptom checking in 5 minutes', 'Secure FHIR-compliant data transfer', 'Automated follow-up scheduling'].map((item, i) => (

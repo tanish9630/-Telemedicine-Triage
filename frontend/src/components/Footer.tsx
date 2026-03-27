@@ -13,7 +13,7 @@ export function Footer() {
               </div>
               <span className="text-xl font-bold text-slate-900 tracking-tight">CareConnect</span>
             </div>
-            <p className="text-slate-500 mb-6">Transforming healthcare triage through AI-powered insights and seamless patient-provider connections.</p>
+            <p className="text-slate-500 mb-6">Transforming healthcare triage through AI-powered insights and seamless patient-doctor connections.</p>
             <div className="flex space-x-4">
               <a href="#" className="text-slate-400 hover:text-indigo-600 transition-colors"><Globe className="w-5 h-5" /></a>
               <a href="#" className="text-slate-400 hover:text-indigo-600 transition-colors"><Mail className="w-5 h-5" /></a>
@@ -31,7 +31,7 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="font-semibold text-slate-900 mb-4">Provider Portal</h4>
+            <h4 className="font-semibold text-slate-900 mb-4">Doctor Portal</h4>
             <ul className="space-y-3">
               <li><a href="#" className="text-slate-500 hover:text-indigo-600 transition-colors">Patient Queue</a></li>
               <li><a href="#" className="text-slate-500 hover:text-indigo-600 transition-colors">AI Triage Insights</a></li>

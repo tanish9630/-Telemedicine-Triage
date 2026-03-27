@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ArrowLeft, Calendar, Video, Clock, ChevronLeft, ChevronRight, Users, TrendingUp, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, Video, Clock, ChevronLeft, ChevronRight, TrendingUp, CheckCircle2 } from 'lucide-react';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
@@ -50,22 +51,22 @@ export function DoctorCalendar() {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 font-sans text-white">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-200 transition-colors">
       {/* Header */}
-      <header className="bg-slate-900/80 backdrop-blur-xl border-b border-white/5 px-6 py-4 sticky top-0 z-40">
+      <header className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-white/5 px-6 py-4 sticky top-0 z-40 shadow-sm transition-colors">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <button onClick={() => navigate('/doctor/dashboard')}
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors border border-white/10">
-              <ArrowLeft className="w-5 h-5 text-slate-300" />
+              className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">
+              <ArrowLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
             </button>
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-600/30">
                 <Calendar className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-white">Appointment Calendar</h1>
-                <p className="text-xs text-slate-400">{MONTHS[month]} {year}</p>
+                <h1 className="text-lg font-bold text-slate-900 dark:text-white">Appointment Calendar</h1>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{MONTHS[month]} {year}</p>
               </div>
             </div>
           </div>
@@ -74,6 +75,9 @@ export function DoctorCalendar() {
             <Stat label="Today" value={todayAppts.length} color="indigo" />
             <Stat label="This Month" value={thisMonthAppts.length} color="emerald" />
             <Stat label="Total" value={appts.length} color="purple" />
+            <div className="pl-4 border-l border-slate-200 dark:border-white/10">
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       </header>
@@ -81,27 +85,27 @@ export function DoctorCalendar() {
       <main className="max-w-7xl mx-auto p-6 grid lg:grid-cols-5 gap-8">
         {/* Calendar Panel */}
         <div className="lg:col-span-3">
-          <div className="bg-white/5 backdrop-blur-sm rounded-3xl border border-white/10 shadow-2xl p-6">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-white/5 shadow-sm p-6 transition-colors">
             {/* Month Nav */}
             <div className="flex justify-between items-center mb-6">
               <button onClick={() => setViewDate(new Date(year, month - 1, 1))}
-                className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors border border-white/10">
-                <ChevronLeft className="w-5 h-5 text-slate-300" />
+                className="p-2.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">
+                <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
               </button>
               <div className="text-center">
-                <h2 className="text-2xl font-bold text-white">{MONTHS[month]}</h2>
-                <p className="text-sm text-slate-400">{year}</p>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{MONTHS[month]}</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">{year}</p>
               </div>
               <button onClick={() => setViewDate(new Date(year, month + 1, 1))}
-                className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors border border-white/10">
-                <ChevronRight className="w-5 h-5 text-slate-300" />
+                className="p-2.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">
+                <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-300" />
               </button>
             </div>
 
             {/* Day headers */}
             <div className="grid grid-cols-7 mb-3">
               {DAYS.map(d => (
-                <div key={d} className="text-center text-xs font-bold text-slate-500 uppercase tracking-widest py-2">{d}</div>
+                <div key={d} className="text-center text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest py-2">{d}</div>
               ))}
             </div>
 
@@ -120,14 +124,14 @@ export function DoctorCalendar() {
                   <button key={i} onClick={() => setSelected(dayDate)}
                     className={`relative aspect-square flex flex-col items-center justify-center rounded-2xl text-sm font-semibold transition-all duration-200 group
                       ${isSelected ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/40 scale-105' 
-                        : isToday ? 'bg-indigo-600/20 text-indigo-300 ring-2 ring-indigo-500/50' 
-                        : isPast ? 'text-slate-600 hover:bg-white/5' 
-                        : 'text-slate-300 hover:bg-white/10'}`}>
+                        : isToday ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 ring-2 ring-indigo-500/50' 
+                        : isPast ? 'text-slate-400 dark:text-slate-600 hover:bg-slate-100 dark:hover:bg-white/5' 
+                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10'}`}>
                     {i + 1}
                     {dayAppts.length > 0 && (
                       <div className="flex gap-0.5 mt-1">
                         {dayAppts.slice(0, 3).map((_, ai) => (
-                          <div key={ai} className={`w-1.5 h-1.5 rounded-full transition-colors ${isSelected ? 'bg-white/70' : 'bg-emerald-400'}`} />
+                          <div key={ai} className={`w-1.5 h-1.5 rounded-full transition-colors ${isSelected ? 'bg-white/70' : 'bg-emerald-500 dark:bg-emerald-400'}`} />
                         ))}
                       </div>
                     )}
@@ -142,10 +146,10 @@ export function DoctorCalendar() {
             </div>
 
             {/* Legend */}
-            <div className="flex items-center justify-center space-x-6 mt-6 pt-6 border-t border-white/5 text-xs text-slate-500">
-              <div className="flex items-center space-x-1.5"><div className="w-2.5 h-2.5 rounded-full bg-indigo-600/40 ring-2 ring-indigo-500/50" /><span>Today</span></div>
+            <div className="flex items-center justify-center space-x-6 mt-6 pt-6 border-t border-slate-100 dark:border-white/5 text-xs text-slate-500">
+              <div className="flex items-center space-x-1.5"><div className="w-2.5 h-2.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 ring-2 ring-indigo-500/50" /><span>Today</span></div>
               <div className="flex items-center space-x-1.5"><div className="w-2.5 h-2.5 rounded-full bg-indigo-600" /><span>Selected</span></div>
-              <div className="flex items-center space-x-1.5"><div className="w-2.5 h-2.5 rounded-full bg-emerald-400" /><span>Appointments</span></div>
+              <div className="flex items-center space-x-1.5"><div className="w-2.5 h-2.5 rounded-full bg-emerald-500 dark:bg-emerald-400" /><span>Appointments</span></div>
             </div>
           </div>
         </div>
@@ -153,57 +157,57 @@ export function DoctorCalendar() {
         {/* Appointments Sidebar */}
         <div className="lg:col-span-2 space-y-5">
           <div>
-            <h3 className="text-lg font-bold text-white mb-1">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
               {selected ? selected.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : 'Select a day'}
             </h3>
-            <p className="text-sm text-slate-400">{selectedAppts.length} appointment{selectedAppts.length !== 1 ? 's' : ''} scheduled</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{selectedAppts.length} appointment{selectedAppts.length !== 1 ? 's' : ''} scheduled</p>
           </div>
 
           {selectedAppts.length === 0 ? (
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-10 text-center">
-              <Calendar className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-              <p className="text-slate-400 text-sm font-medium">
+            <div className="bg-white dark:bg-white/5 border border-slate-100 dark:border-white/10 rounded-2xl p-10 text-center shadow-sm transition-colors">
+              <Calendar className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">
                 {selected ? 'No appointments on this day.' : 'Click a date to view appointments.'}
               </p>
             </div>
           ) : selectedAppts.map(a => (
-            <div key={a._id} className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/8 transition-all group">
+            <div key={a._id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 shadow-sm rounded-2xl p-5 hover:border-indigo-200 dark:hover:border-indigo-500/30 transition-all group">
               <div className="flex items-center mb-4">
-                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm mr-3 shadow-lg">
+                <div className="w-11 h-11 rounded-2xl bg-indigo-100 dark:bg-gradient-to-br dark:from-indigo-500 dark:to-purple-600 flex items-center justify-center text-indigo-700 dark:text-white font-bold text-sm mr-3">
                   {a.patient.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                 </div>
                 <div className="flex-1">
-                  <div className="font-bold text-white">{a.patient.fullName}</div>
-                  <div className="text-xs text-slate-400">{a.patient.email}</div>
+                  <div className="font-bold text-slate-900 dark:text-white">{a.patient.fullName}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">{a.patient.email}</div>
                 </div>
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
               </div>
 
               <div className="grid grid-cols-2 gap-2 mb-4">
-                <div className="bg-white/5 rounded-xl p-3 flex items-center space-x-2">
-                  <Clock className="w-4 h-4 text-indigo-400" />
+                <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 flex items-center space-x-2 transition-colors">
+                  <Clock className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
                   <div>
                     <div className="text-xs text-slate-500">Time</div>
-                    <div className="text-sm font-semibold text-white">{new Date(a.dateTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</div>
+                    <div className="text-sm font-semibold text-slate-900 dark:text-white">{new Date(a.dateTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</div>
                   </div>
                 </div>
-                <div className="bg-white/5 rounded-xl p-3 flex items-center space-x-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 flex items-center space-x-2 transition-colors">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
                   <div>
                     <div className="text-xs text-slate-500">Status</div>
-                    <div className="text-sm font-semibold text-emerald-400 capitalize">{a.status}</div>
+                    <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 capitalize">{a.status}</div>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white/5 rounded-xl p-3 mb-4">
+              <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 mb-4 transition-colors">
                 <div className="text-xs text-slate-500 mb-1">Reason</div>
-                <p className="text-sm text-slate-300">{a.reason}</p>
+                <p className="text-sm text-slate-700 dark:text-slate-300">{a.reason}</p>
               </div>
 
               {a.channelName && (
                 <button onClick={() => navigate(`/consultation/${a.channelName}`)}
-                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl flex items-center justify-center transition-all shadow-lg shadow-indigo-600/30 group-hover:shadow-indigo-600/50">
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl flex items-center justify-center transition-all shadow-lg">
                   <Video className="w-4 h-4 mr-2" /> Start Video Consultation
                 </button>
               )}
@@ -212,19 +216,19 @@ export function DoctorCalendar() {
 
           {/* Upcoming this month */}
           {thisMonthAppts.length > 0 && (
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
-              <h4 className="text-sm font-bold text-slate-300 mb-3 flex items-center">
-                <TrendingUp className="w-4 h-4 mr-2 text-indigo-400" /> This Month
+            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 shadow-sm rounded-2xl p-5 transition-colors">
+              <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 flex items-center">
+                <TrendingUp className="w-4 h-4 mr-2 text-indigo-500 dark:text-indigo-400" /> This Month
               </h4>
               <div className="space-y-2">
                 {thisMonthAppts.slice(0, 5).map(a => (
-                  <div key={a._id} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+                  <div key={a._id} className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-white/5 last:border-0 transition-colors">
                     <div>
-                      <div className="text-sm font-medium text-white">{a.patient.fullName}</div>
+                      <div className="text-sm font-medium text-slate-900 dark:text-white">{a.patient.fullName}</div>
                       <div className="text-xs text-slate-500">{new Date(a.dateTime).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</div>
                     </div>
                     <button onClick={() => setSelected(new Date(a.dateTime))}
-                      className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold">
+                      className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-semibold">
                       View →
                     </button>
                   </div>
@@ -239,15 +243,12 @@ export function DoctorCalendar() {
 }
 
 function Stat({ label, value, color }: { label: string; value: number; color: string }) {
-  const colors: Record<string, string> = {
-    indigo: 'text-indigo-400',
-    emerald: 'text-emerald-400',
-    purple: 'text-purple-400',
-  };
+  const cLight: Record<string, string> = { indigo: 'text-indigo-600', emerald: 'text-emerald-600', purple: 'text-purple-600' };
+  const cDark: Record<string, string> = { indigo: 'dark:text-indigo-400', emerald: 'dark:text-emerald-400', purple: 'dark:text-purple-400' };
   return (
     <div className="text-center">
-      <div className={`text-2xl font-bold ${colors[color]}`}>{value}</div>
-      <div className="text-xs text-slate-500 font-medium">{label}</div>
+      <div className={`text-2xl font-bold ${cLight[color]} ${cDark[color]}`}>{value}</div>
+      <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">{label}</div>
     </div>
   );
 }

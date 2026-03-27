@@ -32,7 +32,7 @@ export function PatientDashboard() {
   const { user, token, logout } = useAuth();
   const [upcomingAppts, setUpcomingAppts] = useState<Appointment[]>([]);
   const navigate = useNavigate();
-  const [intakeComplete, setIntakeComplete] = useState(false);
+  const [intakeComplete, setIntakeComplete] = useState(() => localStorage.getItem('intakeComplete') === 'true');
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState([
     { from: 'ai', text: "Hello! I'm your AI Triage Assistant. How are you feeling right now?", time: '10:31 AM' },
@@ -69,6 +69,7 @@ export function PatientDashboard() {
 
   const handleIntakeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    localStorage.setItem('intakeComplete', 'true');
     setIntakeComplete(true);
   };
 
@@ -90,6 +91,7 @@ export function PatientDashboard() {
   }, [chatInput]);
 
   const handleSignOut = () => {
+    localStorage.removeItem('intakeComplete');
     logout();
     navigate('/');
   };

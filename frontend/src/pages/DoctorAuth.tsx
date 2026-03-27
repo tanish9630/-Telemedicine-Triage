@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Stethoscope, ChevronRight, Loader2, Mail, Lock, User, FileText, Calendar as CalendarIcon, MapPin, Activity, BarChart3, Users, Video, CheckCircle2, Heart } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 
 const medicalCouncils = [
   "Andhra Pradesh Medical Council", "Arunachal Pradesh Medical Council", "Assam Medical Council",
@@ -31,36 +31,37 @@ export function DoctorAuth() {
   const [council, setCouncil] = useState('');
   const [regYear, setRegYear] = useState('');
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      if (isLogin) {
-        // --- SIGN IN ---
-        const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-        if (signInError) throw signInError;
-        // Verify it's a doctor profile
-        const { data: profile } = await supabase.from('profiles').select('full_name, role').eq('id', data.user!.id).single();
-        if (profile?.role !== 'doctor') throw new Error('This account is not registered as a doctor.');
-        localStorage.setItem('doctorName', profile.full_name || email);
-        navigate('/doctor/dashboard');
-      } else {
-        // --- SIGN UP ---
-        const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
-        if (signUpError) throw signUpError;
-        await supabase.from('profiles').insert({
-          id: data.user!.id,
-          role: 'doctor',
-          full_name: name,
-          registration_number: regNumber,
-          specialization: council,
-          is_verified: false,
-        });
-        localStorage.setItem('doctorName', name);
-        navigate('/doctor/dashboard');
+      const endpoint = isLogin ? '/login' : '/signup';
+      const body = isLogin 
+        ? { email, password }
+        : { fullName: name, email, password, role: 'doctor', registrationNumber: regNumber, specialization: council };
+
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+      const response = await fetch(`${API_URL}/auth${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Authentication failed');
       }
+
+      if (isLogin && data.role !== 'doctor') {
+        throw new Error('This account is not registered as a doctor. Please use the Patient Portal to sign in.');
+      }
+
+      login(data, data.token);
+      navigate('/doctor/dashboard');
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.');
     } finally {

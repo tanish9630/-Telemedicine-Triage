@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Heart, Activity, Users, Mail, Lock, User, ArrowRight, Loader2, CheckCircle2, Video, ShieldCheck } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 
 const features = [
   { icon: <Activity className="w-5 h-5" />, title: "Real-Time Monitoring", desc: "Track your vitals live with AI-powered analytics." },
@@ -18,33 +18,37 @@ export function PatientAuth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      if (isLogin) {
-        // --- SIGN IN ---
-        const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-        if (signInError) throw signInError;
-        // Store name from profile
-        const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', data.user!.id).single();
-        if (profile?.full_name) localStorage.setItem('patientName', profile.full_name);
-        navigate('/patient/dashboard');
-      } else {
-        // --- SIGN UP ---
-        const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
-        if (signUpError) throw signUpError;
-        // Insert a profile row with the patient role
-        await supabase.from('profiles').insert({
-          id: data.user!.id,
-          role: 'patient',
-          full_name: name,
-        });
-        localStorage.setItem('patientName', name);
-        navigate('/patient/dashboard');
+      const endpoint = isLogin ? '/login' : '/signup';
+      const body = isLogin 
+        ? { email, password }
+        : { fullName: name, email, password, role: 'patient' };
+
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+      const response = await fetch(`${API_URL}/auth${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Authentication failed');
       }
+
+      if (isLogin && data.role === 'doctor') {
+        throw new Error('This account is registered as a doctor. Please use the Doctor Portal to sign in.');
+      }
+
+      login(data, data.token);
+      navigate('/patient/dashboard');
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.');
     } finally {

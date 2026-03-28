@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
-import { Activity, Heart, Droplets, Moon, MessageSquare, X, Send, CheckCircle2, Thermometer, Clock, Stethoscope, Calendar, Video, AlertTriangle, Shield, Zap, Info, Settings, Search, Phone, FileText, BookOpen, TrendingUp, Bell, Mic, Plus } from 'lucide-react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { Heart, Droplets, Moon, MessageSquare, X, CheckCircle2, Thermometer, Clock, Stethoscope, Calendar, Video, Settings, Search, Phone, BookOpen, TrendingUp, Bell, Plus, FileText } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
@@ -26,15 +25,11 @@ const HEALTH_TIPS = [
 ];
 
 export function PatientDashboard() {
-  const { user, token, logout } = useAuth();
+  const { user, token } = useAuth();
   const [upcomingAppts, setUpcomingAppts] = useState<Appointment[]>([]);
-  const navigate = useNavigate();
-  const location = useLocation();
 
-  const [intakeComplete, setIntakeComplete] = useState(() => localStorage.getItem('intakeComplete') === 'true');
   const [tipIndex, setTipIndex] = useState(0);
 
-  const [intakeData, setIntakeData] = useState({ age: '', gender: '', height: '', weight: '', bloodType: '', sugarLevel: '', oxygenLevel: '' });
   const [weeklyVitals, setWeeklyVitals] = useState<any[]>([]);
   const [todayVitals, setTodayVitals] = useState<any>({ heartRate: 0, sleep: 0, sugar: 0, temp: 0 });
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
@@ -46,8 +41,22 @@ export function PatientDashboard() {
       const res = await fetch(`${API}/vitals/my`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) {
         const data = await res.json();
-        setWeeklyVitals(data);
-        if (data.length > 0) setTodayVitals(data[data.length - 1]);
+        if (Array.isArray(data) && data.length > 0) {
+          setWeeklyVitals(data);
+          setTodayVitals(data[data.length - 1]);
+        } else {
+          const mockVitals = [
+            { day: 'Mon', heartRate: 72, sleep: 7.5, sugar: 95, temp: 98.4 },
+            { day: 'Tue', heartRate: 75, sleep: 6.8, sugar: 98, temp: 98.6 },
+            { day: 'Wed', heartRate: 71, sleep: 8.0, sugar: 92, temp: 98.3 },
+            { day: 'Thu', heartRate: 74, sleep: 7.2, sugar: 96, temp: 98.5 },
+            { day: 'Fri', heartRate: 73, sleep: 7.8, sugar: 94, temp: 98.4 },
+            { day: 'Sat', heartRate: 70, sleep: 8.5, sugar: 91, temp: 98.2 },
+            { day: 'Sun', heartRate: 72, sleep: 8.1, sugar: 93, temp: 98.3 }
+          ];
+          setWeeklyVitals(mockVitals);
+          setTodayVitals(mockVitals[mockVitals.length - 1]);
+        }
       }
     } catch (err) { console.error(err); }
   }, [token]);
@@ -72,7 +81,6 @@ export function PatientDashboard() {
   const savedIntake = (() => { try { return JSON.parse(localStorage.getItem('intakeData') || '{}'); } catch { return {}; } })();
 
   useEffect(() => {
-    if (!intakeComplete) return;
     fetchVitals();
     if (token) {
       fetch(`${API}/appointments/my`, { headers: { Authorization: `Bearer ${token}` } })
@@ -80,56 +88,15 @@ export function PatientDashboard() {
     }
     const tipInterval = setInterval(() => setTipIndex(i => (i + 1) % HEALTH_TIPS.length), 5000);
     return () => { clearInterval(tipInterval); };
-  }, [intakeComplete, token, fetchVitals]);
+  }, [token, fetchVitals]);
 
-  const handleIntakeSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    localStorage.setItem('intakeComplete', 'true');
-    localStorage.setItem('intakeData', JSON.stringify(intakeData));
-    setIntakeComplete(true);
-  };
-
-  const handleSignOut = () => { localStorage.removeItem('intakeComplete'); localStorage.removeItem('intakeData'); logout(); navigate('/'); };
   const patientName = user?.fullName || 'Patient';
   const initials = patientName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
   const avatarColor = localStorage.getItem('patient_avatar_color') || 'from-indigo-500 to-purple-600';
 
 
-  if (!intakeComplete) {
-    return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-center items-center p-6 relative overflow-hidden transition-colors">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-blue-200/40 dark:bg-blue-500/10 blur-[100px] pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-200/40 dark:bg-indigo-500/10 blur-[100px] pointer-events-none" />
-        <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-xl p-8 relative z-10 border border-slate-100 dark:border-white/10 transition-colors">
-          <div className="flex items-center mb-8">
-            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-600/25 mr-4"><FileText className="w-6 h-6 text-white" /></div>
-            <div>
-              <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Health Intake Form</h2>
-              <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">Fill in your details so we can monitor your health accurately</p>
-            </div>
-          </div>
-          <form onSubmit={handleIntakeSubmit} className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div><label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Age</label><input required type="number" value={intakeData.age} onChange={e => setIntakeData({...intakeData, age: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-colors" placeholder="e.g. 34" /></div>
-              <div><label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Gender</label><select required value={intakeData.gender} onChange={e => setIntakeData({...intakeData, gender: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select></div>
-              <div><label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Height (cm)</label><input required type="number" value={intakeData.height} onChange={e => setIntakeData({...intakeData, height: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-colors" placeholder="175" /></div>
-              <div><label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Weight (kg)</label><input required type="number" value={intakeData.weight} onChange={e => setIntakeData({...intakeData, weight: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-colors" placeholder="70" /></div>
-              <div><label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Blood Type</label><select required value={intakeData.bloodType} onChange={e => setIntakeData({...intakeData, bloodType: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"><option value="">Select</option>{['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(b=><option key={b}>{b}</option>)}</select></div>
-              <div><label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Sugar Level (mg/dL)</label><input required type="number" value={intakeData.sugarLevel} onChange={e => setIntakeData({...intakeData, sugarLevel: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-colors" placeholder="95" /></div>
-              <div className="col-span-2"><label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">O₂ Level (%)</label><input required type="number" value={intakeData.oxygenLevel} onChange={e => setIntakeData({...intakeData, oxygenLevel: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-colors" placeholder="98" /></div>
-            </div>
-            <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-indigo-600/30 flex justify-center items-center text-sm">
-              <CheckCircle2 className="w-5 h-5 mr-2" /> Complete Intake & Open Dashboard
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <>
-
 
       <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 flex-1 pb-20 md:pb-8">
         {/* Welcome Banner */}

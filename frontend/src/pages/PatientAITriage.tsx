@@ -71,7 +71,7 @@ export function PatientAITriage() {
   const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const { isListening, isTranscribing, startListening, stopListening, hasRecognitionSupport } = useSpeechRecognition({
+  const { isListening, startListening, stopListening } = useSpeechRecognition({
     groqApiKey: GROQ_KEY,
     onResult: (transcript) => setChatInput((prev) => (prev ? prev + ' ' + transcript : transcript))
   });

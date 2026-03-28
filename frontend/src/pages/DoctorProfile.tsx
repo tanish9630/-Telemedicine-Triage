@@ -73,7 +73,7 @@ export function DoctorProfile() {
     return saved ? parseInt(saved) : 0;
   });
   const [ratingSubmitted, setRatingSubmitted] = useState(() => !!localStorage.getItem(`doctor_rating_${id}`));
-  const [showBooking, setShowBooking] = useState(false);
+  
 
   // Seeded stats based on doctor ID
   const seed = id ? id.charCodeAt(0) + id.charCodeAt(id.length - 1) : 42;

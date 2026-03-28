@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  User, Mail, Lock, Heart, Phone, Bell, Shield, Trash2,
+  User, Lock, Heart, Phone, Bell, Shield, Trash2,
   Save, CheckCircle2, Camera, Palette, AlertCircle, Settings
 } from 'lucide-react';
 

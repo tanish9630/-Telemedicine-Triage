@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  ArrowLeft, User, Mail, Lock, Bell, Shield, Trash2, Save, CheckCircle2,
-  Camera, Palette, Settings, Briefcase, Clock, Languages, Phone,
+  ArrowLeft, User, Lock, Bell, Shield, Trash2, Save, CheckCircle2,
+  Palette, Settings, Briefcase, Clock, Languages,
   LayoutDashboard, Calendar, Users
 } from 'lucide-react';
 import { ThemeToggle } from '../components/ThemeToggle';
@@ -42,7 +42,7 @@ export function DoctorSettings() {
   const [languages, setLanguages] = useState(localStorage.getItem('doctor_languages') || 'English, Hindi');
   const [experience, setExperience] = useState(localStorage.getItem('doctor_experience') || '');
   const [hospital, setHospital] = useState(localStorage.getItem('doctor_hospital') || '');
-  const [regNumber, setRegNumber] = useState(user?.registrationNumber || '');
+  const [regNumber] = useState(user?.registrationNumber || '');
 
   // Availability
   const [startTime, setStartTime] = useState(localStorage.getItem('doctor_start') || '09:00');
@@ -235,7 +235,7 @@ export function DoctorSettings() {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">NMC Registration #</label>
-                    <input value={regNumber} onChange={e => {}} readOnly
+                    <input value={regNumber} onChange={() => {}} readOnly
                       className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-500 text-sm outline-none cursor-not-allowed"
                       placeholder="Read-only" />
                     <p className="text-xs text-slate-400 mt-1">Registration number cannot be changed</p>

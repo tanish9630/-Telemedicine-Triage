@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ArrowLeft, Calendar, Video, Clock, ChevronLeft, ChevronRight,
+import { Calendar, Video, Clock, ChevronLeft, ChevronRight,
   CheckCircle2, XCircle, AlertCircle, TrendingUp, LayoutGrid, List,
   Stethoscope, CalendarDays, Sparkles } from 'lucide-react';
 

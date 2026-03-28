@@ -6,6 +6,7 @@ import {
   Search, Calendar, ActivitySquare, CheckCircle2, XCircle, AlertCircle, Heart
 } from 'lucide-react';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { Footer } from '../components/Footer';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
@@ -61,7 +62,7 @@ export function DoctorPatients() {
   const totalPending = groups.reduce((s, g) => s + g.appointments.filter(a => a.status === 'pending').length, 0);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-200 transition-colors">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-200 transition-colors flex flex-col">
       {/* Header */}
       <header className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-white/5 px-6 py-4 sticky top-0 z-40 shadow-sm transition-colors">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
@@ -247,6 +248,7 @@ export function DoctorPatients() {
           );
         })}
       </main>
+      <Footer />
     </div>
   );
 }

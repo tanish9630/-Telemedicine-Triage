@@ -1,14 +1,27 @@
-import { type ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { type ReactNode, useEffect, useState } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 interface RoleProtectedRouteProps {
   children: ReactNode;
-  allowedRole: 'doctor' | 'patient';
+  allowedRole: 'doctor' | 'patient' | 'any';
 }
 
 export function RoleProtectedRoute({ children, allowedRole }: RoleProtectedRouteProps) {
   const { user, loading } = useAuth();
+  const location = useLocation();
+  const [redirect, setRedirect] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        setRedirect(allowedRole === 'doctor' ? '/doctor/signup' : (allowedRole === 'patient' ? '/patient/signup' : '/'));
+      } else if (allowedRole !== 'any' && user.role !== allowedRole) {
+        alert(`Access Denied: You are logged in as a ${user.role}, but the page '${location.pathname}' requires ${allowedRole} access. Redirecting...`);
+        setRedirect('/');
+      }
+    }
+  }, [user, loading, allowedRole, location.pathname]);
 
   if (loading) {
     return (
@@ -21,15 +34,12 @@ export function RoleProtectedRoute({ children, allowedRole }: RoleProtectedRoute
     );
   }
 
-  if (!user) {
-    // Redirect to the correct auth page based on which dashboard they tried to access
-    return <Navigate to={allowedRole === 'doctor' ? '/doctor/signup' : '/patient/signup'} replace />;
+  if (redirect) {
+    return <Navigate to={redirect} state={{ from: location }} replace />;
   }
 
-  if (user.role !== allowedRole) {
-    // Wrong role — redirect to landing page
-    return <Navigate to="/" replace />;
-  }
+  // Fallback while useEffect calculates redirect
+  if (!user || (allowedRole !== 'any' && user.role !== allowedRole)) return null;
 
   return <>{children}</>;
 }

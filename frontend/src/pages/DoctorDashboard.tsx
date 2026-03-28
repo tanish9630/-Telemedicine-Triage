@@ -6,11 +6,13 @@ import {
 import {
   LayoutDashboard, Calendar as CalendarIcon, Users,
   Bell, TrendingUp, TrendingDown,
-  Video, Check, X, Clock, Activity, LogOut
+  Video, Check, X, Clock, Activity, LogOut, Settings
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { Footer } from '../components/Footer';
+import { useCallNotification } from '../hooks/useCallNotification';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
@@ -51,6 +53,7 @@ export function DoctorDashboard() {
   const [requests, setRequests] = useState<Appointment[]>([]);
   const [liveData, setLiveData] = useState(() => Array.from({ length: 8 }, () => genLive()));
   const [currentTime, setCurrentTime] = useState(new Date());
+  const { incomingCall, dismissCall } = useCallNotification();
 
   const fetchData = useCallback(async () => {
     if (!token) return;
@@ -122,6 +125,7 @@ export function DoctorDashboard() {
           <NavItem icon={<LayoutDashboard className="w-5 h-5" />} label="Dashboard" to="/doctor/dashboard" active />
           <NavItem icon={<CalendarIcon className="w-5 h-5" />} label="Calendar" to="/doctor/calendar" />
           <NavItem icon={<Users className="w-5 h-5" />} label="Patients" to="/doctor/patients" />
+          <NavItem icon={<Settings className="w-5 h-5" />} label="Settings" to="/doctor/settings" />
         </nav>
         <div className="p-4 border-t border-slate-100 dark:border-white/5 transition-colors">
           <div className="flex items-center space-x-3 p-3 rounded-2xl bg-slate-50 dark:bg-white/5 mb-2 transition-colors">
@@ -305,7 +309,32 @@ export function DoctorDashboard() {
             )}
           </div>
         </main>
+        <Footer />
       </div>
+
+      {/* Incoming Call Popup */}
+      {incomingCall && (
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-white/10 p-8 max-w-sm w-full text-center transition-colors">
+            <div className="w-20 h-20 bg-indigo-100 dark:bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-4 relative">
+              <Video className="w-10 h-10 text-indigo-600 dark:text-indigo-400" />
+              <div className="absolute inset-0 rounded-full border-4 border-indigo-400 animate-ping" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">Patient Joining Call</h3>
+            <p className="text-slate-600 dark:text-slate-400 text-sm mb-6">
+              <span className="font-semibold text-indigo-600 dark:text-indigo-400">{incomingCall.callerName}</span> has joined the consultation room.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={dismissCall} className="flex-1 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 font-semibold py-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-sm">Dismiss</button>
+              <button
+                onClick={() => { dismissCall(); navigate(`/consultation/${incomingCall.channelName}`); }}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center text-sm shadow-lg shadow-indigo-600/30">
+                <Video className="w-4 h-4 mr-2" /> Join Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -20,45 +20,74 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/** Read the stored user synchronously to avoid any flash/redirect on refresh */
+function getStoredAuth(): { user: User | null; token: string | null } {
+  try {
+    const token = localStorage.getItem('token');
+    const userRaw = localStorage.getItem('authUser');
+    if (token && userRaw) {
+      const user = JSON.parse(userRaw) as User;
+      return { user, token };
+    }
+  } catch {
+    // corrupted data — ignore
+  }
+  return { user: null, token: null };
+}
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Initialise synchronously from localStorage — no loading flash
+  const stored = getStoredAuth();
+  const [user, setUser] = useState<User | null>(stored.user);
+  const [token, setToken] = useState<string | null>(stored.token);
+  // loading is false immediately if we already have a stored user
+  const [loading, setLoading] = useState(!stored.user);
 
   useEffect(() => {
-    const initAuth = async () => {
-      const storedToken = localStorage.getItem('token');
-      if (storedToken) {
-        try {
-          const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-          const response = await fetch(`${API_URL}/auth/profile`, {
-            headers: {
-              Authorization: `Bearer ${storedToken}`,
-            },
-          });
-
-          if (response.ok) {
-            const userData = await response.json();
-            setUser(userData);
-            setToken(storedToken);
-          } else {
-            localStorage.removeItem('token');
-          }
-        } catch (error) {
-          console.error('Failed to restore session:', error);
-          localStorage.removeItem('token');
-        }
-      }
+    const storedToken = localStorage.getItem('token');
+    if (!storedToken) {
       setLoading(false);
+      return;
+    }
+
+    // Silently validate token in background
+    const validate = async () => {
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+        const response = await fetch(`${API_URL}/auth/profile`, {
+          headers: { Authorization: `Bearer ${storedToken}` },
+        });
+
+        if (response.ok) {
+          const userData = await response.json();
+          setUser(userData);
+          setToken(storedToken);
+          // Keep stored user in sync
+          localStorage.setItem('authUser', JSON.stringify(userData));
+        } else if (response.status === 401) {
+          // Truly expired/invalid token — clear everything
+          localStorage.removeItem('token');
+          localStorage.removeItem('authUser');
+          setUser(null);
+          setToken(null);
+        }
+        // Any other error (500, network down) — keep the existing state
+      } catch {
+        // Network error — don't log out, just keep current state
+        console.warn('Background auth validation failed (network issue). Keeping session.');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    initAuth();
+    validate();
   }, []);
 
   const login = (userData: User, authToken: string) => {
     setUser(userData);
     setToken(authToken);
     localStorage.setItem('token', authToken);
+    localStorage.setItem('authUser', JSON.stringify(userData));
     if (userData.role === 'patient') {
       localStorage.setItem('patientName', userData.fullName);
     } else {
@@ -70,6 +99,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
     setToken(null);
     localStorage.removeItem('token');
+    localStorage.removeItem('authUser');
     localStorage.removeItem('patientName');
     localStorage.removeItem('doctorName');
   };

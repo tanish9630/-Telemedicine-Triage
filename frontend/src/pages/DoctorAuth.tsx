@@ -1,7 +1,24 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Stethoscope, ChevronRight, Loader2, Mail, Lock, User, FileText, Calendar as CalendarIcon, MapPin, Activity, BarChart3, Users, Video, CheckCircle2, Heart } from 'lucide-react';
+import { ShieldCheck, Stethoscope, ChevronRight, Loader2, Mail, Lock, User, FileText, Calendar as CalendarIcon, Activity, BarChart3, Users, Video, CheckCircle2, Heart, Briefcase } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+
+const SPECIALIZATIONS = [
+  { value: 'General Practitioner (OPD)', label: 'General Practitioner (OPD)', icon: '🩺' },
+  { value: 'Gynecologist', label: 'Gynecologist', icon: '👩‍⚕️' },
+  { value: 'Surgeon', label: 'Surgeon', icon: '🔬' },
+  { value: 'Neurologist', label: 'Neurologist', icon: '🧠' },
+  { value: 'Psychiatrist', label: 'Psychiatrist / Mentalist', icon: '🧘' },
+  { value: 'Cardiologist', label: 'Cardiologist', icon: '❤️' },
+  { value: 'Pediatrician', label: 'Pediatrician', icon: '👶' },
+  { value: 'Dermatologist', label: 'Dermatologist', icon: '🩹' },
+  { value: 'Orthopedic Surgeon', label: 'Orthopedic Surgeon', icon: '🦴' },
+  { value: 'ENT Specialist', label: 'ENT Specialist', icon: '👂' },
+  { value: 'Ophthalmologist', label: 'Ophthalmologist', icon: '👁️' },
+  { value: 'Oncologist', label: 'Oncologist', icon: '🔭' },
+  { value: 'Pulmonologist', label: 'Pulmonologist', icon: '🫁' },
+  { value: 'Endocrinologist', label: 'Endocrinologist', icon: '⚗️' },
+];
 
 const medicalCouncils = [
   "Andhra Pradesh Medical Council", "Arunachal Pradesh Medical Council", "Assam Medical Council",
@@ -10,7 +27,7 @@ const medicalCouncils = [
   "Jharkhand Medical Council", "Karnataka Medical Council", "Kerala Medical Council",
   "Madhya Pradesh Medical Council", "Maharashtra Medical Council", "Orissa Council of Medical Registration",
   "Punjab Medical Council", "Rajasthan Medical Council", "Tamil Nadu Medical Council",
-  "Uttar Pradesh Medical Council", "West Bengal Medical Council"
+  "Uttar Pradesh Medical Council", "West Bengal Medical Council", "Medical Council of India (NMC)"
 ];
 
 const features = [
@@ -30,6 +47,7 @@ export function DoctorAuth() {
   const [regNumber, setRegNumber] = useState('');
   const [council, setCouncil] = useState('');
   const [regYear, setRegYear] = useState('');
+  const [specialization, setSpecialization] = useState('');
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -39,9 +57,15 @@ export function DoctorAuth() {
     setLoading(true);
     try {
       const endpoint = isLogin ? '/login' : '/signup';
-      const body = isLogin 
+      const body = isLogin
         ? { email, password }
-        : { fullName: name, email, password, role: 'doctor', registrationNumber: regNumber, specialization: council };
+        : {
+            fullName: name, email, password, role: 'doctor',
+            registrationNumber: regNumber,
+            specialization: specialization,
+            medicalCouncil: council,
+            yearOfRegistration: regYear,
+          };
 
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
       const response = await fetch(`${API_URL}/auth${endpoint}`, {
@@ -152,6 +176,32 @@ export function DoctorAuth() {
 
             {!isLogin && (
               <div className="pt-6 border-t border-slate-100 space-y-5">
+                {/* Specialization */}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                    <span className="flex items-center"><Briefcase className="w-4 h-4 mr-1.5 text-indigo-500" /> Medical Specialization / Profession</span>
+                  </label>
+                  <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
+                    {SPECIALIZATIONS.map(s => (
+                      <button
+                        key={s.value}
+                        type="button"
+                        onClick={() => setSpecialization(s.value)}
+                        className={`flex items-center px-4 py-3 rounded-xl border text-sm font-medium transition-all text-left ${
+                          specialization === s.value
+                            ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-sm ring-2 ring-indigo-500/30'
+                            : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50/50'
+                        }`}
+                      >
+                        <span className="mr-3 text-lg">{s.icon}</span>
+                        <span>{s.label}</span>
+                        {specialization === s.value && <CheckCircle2 className="w-4 h-4 ml-auto text-indigo-600" />}
+                      </button>
+                    ))}
+                  </div>
+                  {!specialization && <p className="text-xs text-amber-600 mt-1">Please select your specialization</p>}
+                </div>
+
                 <div>
                   <h3 className="text-base font-bold text-slate-900 flex items-center mb-1"><ShieldCheck className="w-5 h-5 mr-2 text-indigo-600" /> NMC Verification</h3>
                   <p className="text-xs text-slate-500 mb-4">We verify all doctors against the Indian Medical Register.</p>
@@ -166,7 +216,7 @@ export function DoctorAuth() {
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">State Medical Council</label>
                   <div className="relative">
-                    <MapPin className="absolute left-3 top-3.5 w-5 h-5 text-slate-400" />
+                    <ShieldCheck className="absolute left-3 top-3.5 w-5 h-5 text-slate-400" />
                     <select required value={council} onChange={e => setCouncil(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none text-slate-700">
                       <option value="">Select Council</option>
                       {medicalCouncils.map(c => <option key={c} value={c}>{c}</option>)}
@@ -183,7 +233,11 @@ export function DoctorAuth() {
               </div>
             )}
 
-            <button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-70 text-white font-semibold py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center">
+            <button
+              type="submit"
+              disabled={loading || (!isLogin && !specialization)}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-70 text-white font-semibold py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center"
+            >
               {loading
                 ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" />{isLogin ? 'Signing in...' : 'Verifying with NMC Registry...'}</>
                 : <>{isLogin ? 'Sign in to Dashboard' : 'Verify & Create Account'}{!isLogin && <ChevronRight className="w-4 h-4 ml-1" />}</>

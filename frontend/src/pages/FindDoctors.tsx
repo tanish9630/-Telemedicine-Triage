@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Stethoscope, Calendar, Clock, ArrowLeft, Loader2, Search, CheckCircle2, X, Star, MapPin, Award } from 'lucide-react';
+import { Stethoscope, Calendar, Clock, ArrowLeft, Loader2, Search, CheckCircle2, X, Star, MapPin, Award, Eye } from 'lucide-react';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { Footer } from '../components/Footer';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
@@ -14,24 +15,34 @@ interface Doctor {
 }
 
 const SPECIALIZATION_COLORS: Record<string, string> = {
-  'Cardiology': 'from-rose-500 to-pink-600',
-  'Neurology': 'from-purple-500 to-indigo-600',
-  'Pediatrics': 'from-emerald-500 to-teal-600',
-  'Orthopedics': 'from-orange-500 to-amber-600',
-  'Dermatology': 'from-cyan-500 to-blue-600',
-  'General Practice': 'from-indigo-500 to-blue-600',
+  'Cardiologist': 'from-rose-500 to-pink-600',
+  'Neurologist': 'from-purple-500 to-indigo-600',
+  'Pediatrician': 'from-emerald-500 to-teal-600',
+  'Orthopedic Surgeon': 'from-orange-500 to-amber-600',
+  'Dermatologist': 'from-cyan-500 to-blue-600',
+  'General Practitioner (OPD)': 'from-indigo-500 to-blue-600',
+  'Gynecologist': 'from-pink-500 to-rose-500',
+  'Surgeon': 'from-slate-600 to-slate-800',
+  'Psychiatrist': 'from-violet-500 to-purple-600',
+  'ENT Specialist': 'from-teal-500 to-cyan-600',
+  'Pulmonologist': 'from-sky-500 to-blue-600',
 };
 
 const getGradient = (spec: string) =>
   SPECIALIZATION_COLORS[spec] || 'from-indigo-500 to-purple-600';
 
 const SPEC_DESCRIPTIONS: Record<string, string> = {
-  'Cardiology': 'Heart & Cardiovascular System',
-  'Neurology': 'Brain & Nervous System',
-  'Pediatrics': 'Child & Adolescent Health',
-  'Orthopedics': 'Bones, Joints & Muscles',
-  'Dermatology': 'Skin, Hair & Nails',
-  'General Practice': 'Primary Care & General Health',
+  'Cardiologist': 'Heart & Cardiovascular System',
+  'Neurologist': 'Brain & Nervous System',
+  'Pediatrician': 'Child & Adolescent Health',
+  'Orthopedic Surgeon': 'Bones, Joints & Muscles',
+  'Dermatologist': 'Skin, Hair & Nails',
+  'General Practitioner (OPD)': 'Primary Care & General Health',
+  'Gynecologist': 'Women\'s Health & Reproductive System',
+  'Surgeon': 'Surgical Care & Procedures',
+  'Psychiatrist': 'Mental Health & Behavioural Medicine',
+  'ENT Specialist': 'Ear, Nose & Throat Care',
+  'Pulmonologist': 'Respiratory & Lung Health',
 };
 
 export function FindDoctors() {
@@ -75,10 +86,18 @@ export function FindDoctors() {
     (d.specialization || '').toLowerCase().includes(search.toLowerCase())
   );
 
-  const specs = Array.from(new Set(doctors.map(d => d.specialization || 'General Practice')));
+  const specs = Array.from(new Set(doctors.map(d => d.specialization || 'General Practitioner (OPD)')));
+
+  // Mock ratings (seeded per doctor)
+  const getDoctorRating = (id: string) => {
+    const saved = localStorage.getItem(`doctor_rating_${id}`);
+    if (saved) return parseInt(saved);
+    const seed = id.charCodeAt(0) + id.charCodeAt(id.length - 1);
+    return parseFloat((4.1 + (seed % 9) / 10).toFixed(1));
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-200 transition-colors">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-200 transition-colors flex flex-col">
       {/* Header */}
       <header className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-white/5 px-6 py-4 sticky top-0 z-40 shadow-sm transition-colors">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
@@ -113,10 +132,10 @@ export function FindDoctors() {
         <div className="max-w-6xl mx-auto relative">
           <div className="absolute top-0 right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
           <h2 className="text-3xl font-bold text-white mb-2 relative z-10">Book Your Consultation</h2>
-          <p className="text-indigo-100 dark:text-slate-400 max-w-lg relative z-10">Connect with certified medical professionals for personalized video consultations. Choose a specialist, pick your slot, and get care from the comfort of your home.</p>
+          <p className="text-indigo-100 dark:text-slate-400 max-w-lg relative z-10 text-sm">Connect with certified medical professionals for personalized video consultations. Choose a specialist, pick your slot, and get care from the comfort of your home.</p>
           <div className="flex flex-wrap gap-2 mt-4 relative z-10">
             {specs.map(s => (
-              <button key={s} onClick={() => setSearch(s)}
+              <button key={s} onClick={() => setSearch(search === s ? '' : s)}
                 className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${search === s ? 'bg-white text-indigo-700 border-white dark:bg-indigo-600 dark:border-indigo-500 dark:text-white' : 'bg-white/10 border-white/20 text-indigo-50 hover:bg-white/20 dark:bg-white/5 dark:border-white/10 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white'}`}>
                 {s}
               </button>
@@ -126,7 +145,7 @@ export function FindDoctors() {
         </div>
       </div>
 
-      <main className="max-w-6xl mx-auto p-6">
+      <main className="max-w-6xl mx-auto p-6 flex-1 w-full">
         {loading ? (
           <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-indigo-400" /></div>
         ) : filtered.length === 0 ? (
@@ -134,13 +153,16 @@ export function FindDoctors() {
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mt-2">
             {filtered.map(doc => {
-              const spec = doc.specialization || 'General Practice';
+              const spec = doc.specialization || 'General Practitioner (OPD)';
               const gradient = getGradient(spec);
               const desc = SPEC_DESCRIPTIONS[spec] || 'Medical Specialist';
               const initials = doc.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+              const rating = getDoctorRating(doc._id);
+              const seed = doc._id.charCodeAt(0) + doc._id.charCodeAt(doc._id.length - 1);
+              const reviewCount = 18 + (seed % 112);
 
               return (
-                <div key={doc._id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 shadow-sm rounded-3xl overflow-hidden hover:border-indigo-300 dark:hover:border-indigo-500/30 hover:shadow-xl transition-all duration-300 group">
+                <div key={doc._id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 shadow-sm rounded-3xl overflow-hidden hover:border-indigo-300 dark:hover:border-indigo-500/30 hover:shadow-xl transition-all duration-300 group flex flex-col">
                   {/* Card Header */}
                   <div className={`bg-gradient-to-br ${gradient} p-6 relative overflow-hidden`}>
                     <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-8 translate-x-8" />
@@ -149,10 +171,17 @@ export function FindDoctors() {
                     </div>
                     <h3 className="text-lg font-bold text-white">{doc.fullName}</h3>
                     <p className="text-white/80 text-sm font-medium">{spec}</p>
+                    {/* Stars on card */}
+                    <div className="flex items-center mt-2 space-x-1">
+                      {[1,2,3,4,5].map(s => (
+                        <Star key={s} className={`w-3.5 h-3.5 ${rating >= s ? 'text-amber-300 fill-amber-300' : 'text-white/30'}`} />
+                      ))}
+                      <span className="text-white/80 text-xs ml-1">{rating} ({reviewCount})</span>
+                    </div>
                   </div>
 
                   {/* Card Body */}
-                  <div className="p-5">
+                  <div className="p-5 flex-1 flex flex-col">
                     <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">{desc}</p>
 
                     <div className="space-y-2 mb-4">
@@ -165,15 +194,26 @@ export function FindDoctors() {
                         Available for Video Consultation
                       </div>
                       <div className="flex items-center text-xs text-slate-600 dark:text-slate-400">
-                        <Star className="w-3.5 h-3.5 mr-2 text-amber-500 dark:text-amber-400 fill-amber-400" />
+                        <CheckCircle2 className="w-3.5 h-3.5 mr-2 text-emerald-500 dark:text-emerald-400" />
                         Certified via CareConnect AI
                       </div>
                     </div>
 
-                    <button onClick={() => setBookingDoctor(doc)}
-                      className={`w-full bg-gradient-to-r ${gradient} hover:opacity-90 text-white font-bold py-3 rounded-2xl transition-all shadow-lg flex items-center justify-center group-hover:scale-[1.02]`}>
-                      <Calendar className="w-4 h-4 mr-2" /> Book Appointment
-                    </button>
+                    {/* Actions */}
+                    <div className="mt-auto flex gap-2">
+                      <button
+                        onClick={() => navigate(`/doctor/profile/${doc._id}`)}
+                        className="flex-1 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 font-semibold py-2.5 rounded-2xl transition-all text-xs flex items-center justify-center"
+                      >
+                        <Eye className="w-3.5 h-3.5 mr-1.5" /> View Profile
+                      </button>
+                      <button
+                        onClick={() => setBookingDoctor(doc)}
+                        className={`flex-1 bg-gradient-to-r ${gradient} hover:opacity-90 text-white font-bold py-2.5 rounded-2xl transition-all shadow-md flex items-center justify-center text-xs group-hover:scale-[1.02]`}
+                      >
+                        <Calendar className="w-3.5 h-3.5 mr-1.5" /> Book
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -181,6 +221,8 @@ export function FindDoctors() {
           </div>
         )}
       </main>
+
+      <Footer />
 
       {/* Booking Modal */}
       {bookingDoctor && (

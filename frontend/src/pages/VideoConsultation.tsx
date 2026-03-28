@@ -2,9 +2,10 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 import type { ICameraVideoTrack, IMicrophoneAudioTrack, IAgoraRTCClient, IAgoraRTCRemoteUser } from 'agora-rtc-sdk-ng';
-import { Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Loader2, UserCircle2 } from 'lucide-react';
+import { Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff, Loader2, UserCircle2, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { notifyCallStarted } from '../hooks/useCallNotification';
 
 const APP_ID = import.meta.env.VITE_AGORA_APP_ID || '';
 
@@ -81,6 +82,11 @@ export function VideoConsultation() {
 
         await client.current.publish([audioTrack, videoTrack]);
         setJoined(true);
+        // Broadcast call started to other tabs
+        notifyCallStarted(channelName || 'call', user?.fullName || 'Unknown', user?.role || 'patient');
+        // Mark appointment as completed in localStorage
+        const completedKey = `completed_${channelName}`;
+        localStorage.setItem(completedKey, 'true');
       } catch (error) {
         console.error('Agora Error: ', error);
         alert('Failed to join video room. Check console for details.');
@@ -143,6 +149,7 @@ export function VideoConsultation() {
           <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
           <span className="font-semibold text-lg tracking-wide">Live Consultation Room</span>
           <span className="text-sm font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">{channelName}</span>
+          {joined && <span className="flex items-center text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2.5 py-1 rounded-full font-semibold"><CheckCircle2 className="w-3 h-3 mr-1" /> Consultation Active</span>}
         </div>
         <div className="flex items-center space-x-4">
           <div className="text-slate-500 dark:text-slate-400 text-sm">{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>
@@ -239,7 +246,7 @@ export function VideoConsultation() {
   );
 }
 
-function ControlButton({ onClick, active, color, children }: { onClick: () => void; active: boolean; color: string; children: React.ReactNode }) {
+function ControlButton({ onClick, active, children }: { onClick: () => void; active: boolean; color?: string; children: React.ReactNode }) {
   return (
     <button
       onClick={onClick}

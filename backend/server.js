@@ -8,6 +8,8 @@ import authRoutes from './routes/authRoutes.js';
 import appointmentRoutes from './routes/appointmentRoutes.js';
 import vitalRoutes from './routes/vitalRoutes.js';
 import emergencyRoutes from './routes/emergencyRoutes.js';
+import locationRoutes from './routes/locationRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
 
 dotenv.config();
 
@@ -19,13 +21,16 @@ const PORT = process.env.PORT || 5001;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/vitals', vitalRoutes);
 app.use('/api/emergency', emergencyRoutes);
+app.use('/api/location', locationRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Basic health check route
 app.get('/api/health', (req, res) => {

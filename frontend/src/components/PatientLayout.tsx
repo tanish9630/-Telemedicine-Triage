@@ -1,5 +1,5 @@
 import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
-import { Activity, Stethoscope, Calendar, Settings, Video, MessageSquare, AlertTriangle, Loader2, FileText, CheckCircle2 } from 'lucide-react';
+import { Activity, Stethoscope, Calendar, Settings, Video, MessageSquare, AlertTriangle, Loader2, FileText, CheckCircle2, Navigation } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ThemeToggle } from './ThemeToggle';
 import { Footer } from './Footer';
@@ -79,6 +79,7 @@ export function PatientLayout() {
     { to: '/patient/dashboard', icon: <Activity className="w-5 h-5" />, label: 'Dashboard' },
     { to: '/patient/ai-triage', icon: <MessageSquare className="w-5 h-5" />, label: 'AI Triage' },
     { to: '/find-doctors', icon: <Stethoscope className="w-5 h-5" />, label: 'Doctors' },
+    { to: '/patient/nearby-doctors', icon: <Navigation className="w-5 h-5" />, label: 'Nearby' },
     { to: '/patient/calendar', icon: <Calendar className="w-5 h-5" />, label: 'Calendar' },
     { to: '/patient/settings', icon: <Settings className="w-5 h-5" />, label: 'Settings' },
   ];

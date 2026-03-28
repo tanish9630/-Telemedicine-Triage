@@ -12,6 +12,7 @@ import { DoctorPatients } from './pages/DoctorPatients';
 import { DoctorProfile } from './pages/DoctorProfile';
 import { PatientSettings } from './pages/PatientSettings';
 import { DoctorSettings } from './pages/DoctorSettings';
+import { PatientAITriage } from './pages/PatientAITriage';
 import { RoleProtectedRoute } from './components/RoleProtectedRoute';
 
 import { PatientLayout } from './components/PatientLayout';
@@ -30,6 +31,7 @@ function App() {
         {/* Patient Navigation Group */}
         <Route element={<RoleProtectedRoute allowedRole="patient"><PatientLayout /></RoleProtectedRoute>}>
           <Route path="/patient/dashboard" element={<PatientDashboard />} />
+          <Route path="/patient/ai-triage" element={<PatientAITriage />} />
           <Route path="/patient/calendar" element={<PatientCalendar />} />
           <Route path="/patient/settings" element={<PatientSettings />} />
         </Route>

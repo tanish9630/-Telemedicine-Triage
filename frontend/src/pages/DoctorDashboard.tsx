@@ -1,18 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  BarChart, Bar, AreaChart, Area,
+  BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell
 } from 'recharts';
 import {
-  LayoutDashboard, Calendar as CalendarIcon, Users,
   Bell, TrendingUp, TrendingDown,
-  Video, Check, X, Clock, Activity, LogOut, Settings
+  Video, Check, X, Clock, Trash2
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ThemeToggle } from '../components/ThemeToggle';
-import { Footer } from '../components/Footer';
-import { useCallNotification } from '../hooks/useCallNotification';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
@@ -36,25 +32,15 @@ interface Analytics {
 const AGE_LABELS = ['8-15','16-20','21-30','31-40','41-50','51-60','60+'];
 const BAR_COLORS = ['#6366f1','#818cf8','#a5b4fc','#c7d2fe','#e0e7ff','#6366f1','#818cf8'];
 
-const genLive = () => {
-  const now = new Date();
-  return {
-    time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
-    consultations: Math.floor(Math.random() * 5),
-    triaged: Math.floor(Math.random() * 8),
-  };
-};
+
 
 export function DoctorDashboard() {
-  const { user, token, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user, token } = useAuth();
 
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [requests, setRequests] = useState<Appointment[]>([]);
-  const [liveData, setLiveData] = useState(() => Array.from({ length: 8 }, () => genLive()));
+  const [allAppts, setAllAppts] = useState<Appointment[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const { incomingCall, dismissCall } = useCallNotification();
-
   const fetchData = useCallback(async () => {
     if (!token) return;
     const headers = { Authorization: `Bearer ${token}` };
@@ -65,6 +51,7 @@ export function DoctorDashboard() {
     if (analyticsRes.ok) setAnalytics(await analyticsRes.json());
     if (requestsRes.ok) {
       const all: Appointment[] = await requestsRes.json();
+      setAllAppts(Array.isArray(all) ? all : []);
       setRequests(Array.isArray(all) ? all.filter(a => a.status === 'pending') : []);
     }
   }, [token]);
@@ -72,10 +59,7 @@ export function DoctorDashboard() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setLiveData(prev => [...prev.slice(1), genLive()]);
-      setCurrentTime(new Date());
-    }, 3000);
+    const interval = setInterval(() => setCurrentTime(new Date()), 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -88,8 +72,20 @@ export function DoctorDashboard() {
     fetchData();
   };
 
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this appointment?')) return;
+    try {
+      await fetch(`${API}/appointments/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchData();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const doctorName = user?.fullName || localStorage.getItem('doctorName') || 'Doctor';
-  const initials = doctorName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
 
   const metrics = [
     { label: 'Total Counseling', value: analytics?.totalCounseling ?? 0, isUp: true },
@@ -98,7 +94,17 @@ export function DoctorDashboard() {
     { label: "Today's Schedule", value: analytics?.todaySchedule ?? 0, isUp: true },
   ];
 
-  // Fake age distribution seeded by patient count
+  // Real consultations per weekday from approved appointments
+  const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const consultationsByDay = DAY_LABELS.map(day => ({ day, consultations: 0 }));
+  allAppts
+    .filter(a => a.status === 'approved')
+    .forEach(a => {
+      const d = new Date(a.dateTime).getDay();
+      consultationsByDay[d].consultations += 1;
+    });
+
+  // Age distribution
   const totalPts = analytics?.patients?.length || 0;
   const ageData = AGE_LABELS.map((name, i) => ({
     name, patients: Math.max(0, Math.round(totalPts * [0.05, 0.08, 0.22, 0.28, 0.18, 0.12, 0.07][i]))
@@ -107,62 +113,23 @@ export function DoctorDashboard() {
   const todayAppts = analytics?.todayAppts || [];
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-200 overflow-hidden transition-colors">
-      {/* Sidebar */}
-      <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-white/5 flex flex-col shadow-sm flex-shrink-0 transition-colors">
-        <div className="p-6 border-b border-slate-100 dark:border-white/5 transition-colors">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-md shadow-indigo-600/30">
-              <Activity className="w-6 h-6 text-white" />
-            </div>
+    <div className="flex flex-col h-full min-h-0">
+        <main className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Page Title */}
+          <div className="flex items-center justify-between">
             <div>
-              <span className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">CareConnect</span>
-              <div className="text-xs text-slate-400 font-medium">Doctor Portal</div>
+              <h1 className="text-xl font-bold text-slate-900 dark:text-white">Good morning, {doctorName.split(' ')[0]}! 👋</h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{currentTime.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
             </div>
-          </div>
-        </div>
-        <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
-          <NavItem icon={<LayoutDashboard className="w-5 h-5" />} label="Dashboard" to="/doctor/dashboard" active />
-          <NavItem icon={<CalendarIcon className="w-5 h-5" />} label="Calendar" to="/doctor/calendar" />
-          <NavItem icon={<Users className="w-5 h-5" />} label="Patients" to="/doctor/patients" />
-          <NavItem icon={<Settings className="w-5 h-5" />} label="Settings" to="/doctor/settings" />
-        </nav>
-        <div className="p-4 border-t border-slate-100 dark:border-white/5 transition-colors">
-          <div className="flex items-center space-x-3 p-3 rounded-2xl bg-slate-50 dark:bg-white/5 mb-2 transition-colors">
-            <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold text-sm">{initials}</div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">{doctorName}</div>
-              <div className="text-xs text-slate-500 dark:text-slate-400 truncate">General Practice</div>
-            </div>
-          </div>
-          <button onClick={() => { logout(); navigate('/'); }} className="w-full flex items-center justify-center text-sm text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 py-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors font-medium">
-            <LogOut className="w-4 h-4 mr-2" /> Sign Out
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Bar */}
-        <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-white/5 px-6 flex items-center justify-between flex-shrink-0 shadow-sm transition-colors">
-          <div>
-            <h1 className="text-xl font-bold text-slate-900 dark:text-white">Good morning, {doctorName.split(' ')[0]}! 👋</h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">{currentTime.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-          </div>
-          <div className="flex items-center space-x-4">
-            <ThemeToggle />
             {requests.length > 0 && (
               <div className="relative">
-                <div onClick={() => {}} className="w-9 h-9 bg-slate-100 dark:bg-white/5 rounded-xl flex items-center justify-center hover:bg-slate-200 dark:hover:bg-white/10 cursor-pointer transition-colors">
+                <div className="w-9 h-9 bg-slate-100 dark:bg-white/5 rounded-xl flex items-center justify-center">
                   <Bell className="w-5 h-5 text-slate-600 dark:text-slate-300" />
                 </div>
                 <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white text-xs rounded-full flex items-center justify-center font-bold">{requests.length}</span>
               </div>
             )}
           </div>
-        </header>
-
-        <main className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Metrics */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
             {metrics.map((m) => (
@@ -181,44 +148,34 @@ export function DoctorDashboard() {
             {/* Patients by Age Group */}
             <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100 dark:border-white/5 shadow-sm transition-colors">
               <h3 className="font-bold text-slate-900 dark:text-white mb-4">Patients by Age Group</h3>
-              <div className="h-44">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={ageData} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" className="dark:opacity-10" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} allowDecimals={false} />
-                    <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', backgroundColor: 'var(--tw-prose-bg)' }} />
-                    <Bar dataKey="patients" radius={[6, 6, 0, 0]}>
-                      {ageData.map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              <ResponsiveContainer width="100%" height={176}>
+                <BarChart data={ageData} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" className="dark:opacity-10" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} allowDecimals={false} />
+                  <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', backgroundColor: 'var(--tw-prose-bg)' }} />
+                  <Bar dataKey="patients" radius={[6, 6, 0, 0]}>
+                    {ageData.map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
 
             {/* Live Consultation Trend */}
             <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100 dark:border-white/5 shadow-sm transition-colors">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-slate-900 dark:text-white">Live Consultation Trend</h3>
-                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center animate-pulse"><Clock className="w-3 h-3 mr-1" /> Live</span>
+                <h3 className="font-bold text-slate-900 dark:text-white">Consultations This Week</h3>
+                <span className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold">By Day</span>
               </div>
-              <div className="h-44">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={liveData} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}>
-                    <defs>
-                      <linearGradient id="cGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" className="dark:opacity-10" />
-                    <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 9 }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} />
-                    <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', backgroundColor: 'var(--tw-prose-bg)' }} />
-                    <Area type="monotone" dataKey="consultations" isAnimationActive={false} stroke="#6366f1" strokeWidth={2.5} fillOpacity={1} fill="url(#cGrad)" name="Consultations" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+              <ResponsiveContainer width="100%" height={176}>
+                <LineChart data={consultationsByDay} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" className="dark:opacity-10" />
+                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} allowDecimals={false} />
+                  <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }} />
+                  <Line type="monotone" dataKey="consultations" stroke="#6366f1" strokeWidth={2.5} dot={{ r: 4, fill: '#6366f1', strokeWidth: 0 }} activeDot={{ r: 6 }} name="Consultations" />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
 
             {/* Triage Requests */}
@@ -293,13 +250,16 @@ export function DoctorDashboard() {
                           {new Date(a.dateTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                         </td>
                         <td className="px-5 py-4 text-slate-500 dark:text-slate-400 max-w-xs truncate">{a.reason}</td>
-                        <td className="px-5 py-4">
+                        <td className="px-5 py-4 flex items-center gap-2">
                           {a.channelName && (
                             <Link to={`/consultation/${a.channelName}`}
                               className="flex items-center text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-2 rounded-xl transition-colors w-fit shadow-sm">
                               <Video className="w-3.5 h-3.5 mr-1.5" /> Join Call
                             </Link>
                           )}
+                          <button onClick={() => handleDelete(a._id)} className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-colors" title="Delete Appointment">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -309,40 +269,6 @@ export function DoctorDashboard() {
             )}
           </div>
         </main>
-        <Footer />
-      </div>
-
-      {/* Incoming Call Popup */}
-      {incomingCall && (
-        <div className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-white/10 p-8 max-w-sm w-full text-center transition-colors">
-            <div className="w-20 h-20 bg-indigo-100 dark:bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-4 relative">
-              <Video className="w-10 h-10 text-indigo-600 dark:text-indigo-400" />
-              <div className="absolute inset-0 rounded-full border-4 border-indigo-400 animate-ping" />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">Patient Joining Call</h3>
-            <p className="text-slate-600 dark:text-slate-400 text-sm mb-6">
-              <span className="font-semibold text-indigo-600 dark:text-indigo-400">{incomingCall.callerName}</span> has joined the consultation room.
-            </p>
-            <div className="flex gap-3">
-              <button onClick={dismissCall} className="flex-1 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 font-semibold py-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-sm">Dismiss</button>
-              <button
-                onClick={() => { dismissCall(); navigate(`/consultation/${incomingCall.channelName}`); }}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center text-sm shadow-lg shadow-indigo-600/30">
-                <Video className="w-4 h-4 mr-2" /> Join Now
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
-  );
-}
-
-function NavItem({ icon, label, to, active }: { icon: React.ReactNode; label: string; to: string; active?: boolean }) {
-  return (
-    <Link to={to} className={`flex items-center space-x-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/25' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'}`}>
-      {icon}<span>{label}</span>
-    </Link>
   );
 }

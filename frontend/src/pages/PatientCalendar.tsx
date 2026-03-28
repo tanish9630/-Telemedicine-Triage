@@ -1,13 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import {
-  ArrowLeft, Calendar, Video, Clock, ChevronLeft, ChevronRight,
+import { ArrowLeft, Calendar, Video, Clock, ChevronLeft, ChevronRight,
   CheckCircle2, XCircle, AlertCircle, TrendingUp, LayoutGrid, List,
-  Stethoscope, CalendarDays, Sparkles
-} from 'lucide-react';
-import { ThemeToggle } from '../components/ThemeToggle';
-import { Footer } from '../components/Footer';
+  Stethoscope, CalendarDays, Sparkles } from 'lucide-react';
+
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
@@ -124,15 +121,11 @@ export function PatientCalendar() {
     .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-200 transition-colors flex flex-col">
+    <>
       {/* Header */}
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-white/5 px-6 py-4 sticky top-0 z-40 shadow-sm transition-colors">
+      <header className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-white/5 px-6 py-4 z-30 shadow-sm transition-colors">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <button onClick={() => navigate('/patient/dashboard')}
-              className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">
-              <ArrowLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
-            </button>
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-600/30">
                 <CalendarDays className="w-5 h-5 text-white" />
@@ -162,9 +155,6 @@ export function PatientCalendar() {
               <Stat label="Upcoming" value={upcoming.length} color="indigo" />
               <Stat label="Approved" value={approved.length} color="emerald" />
               <Stat label="Pending" value={pending.length} color="amber" />
-            </div>
-            <div className="pl-3 border-l border-slate-200 dark:border-white/10">
-              <ThemeToggle />
             </div>
           </div>
         </div>
@@ -513,8 +503,7 @@ export function PatientCalendar() {
         </div>
       )}
 
-      <Footer />
-    </div>
+    </>
   );
 }
 

@@ -27,11 +27,28 @@ export function DoctorCalendar() {
   const [viewDate, setViewDate] = useState(new Date());
   const [selected, setSelected] = useState<Date | null>(new Date());
 
-  useEffect(() => {
+  const fetchAppts = () => {
     fetch(`${API}/appointments/doctor`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(data => setAppts(Array.isArray(data) ? data.filter((a: Appointment) => a.status === 'approved') : []));
+  };
+
+  useEffect(() => {
+    fetchAppts();
   }, [token]);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this appointment?')) return;
+    try {
+      await fetch(`${API}/appointments/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchAppts();
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
@@ -206,12 +223,18 @@ export function DoctorCalendar() {
                 <p className="text-sm text-slate-700 dark:text-slate-300">{a.reason}</p>
               </div>
 
-              {a.channelName && (
-                <button onClick={() => navigate(`/consultation/${a.channelName}`)}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl flex items-center justify-center transition-all shadow-lg">
-                  <Video className="w-4 h-4 mr-2" /> Start Video Consultation
+              <div className="flex gap-3">
+                {a.channelName && (
+                  <button onClick={() => navigate(`/consultation/${a.channelName}`)}
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl flex items-center justify-center transition-all shadow-lg text-sm">
+                    <Video className="w-4 h-4 mr-2" /> Join Video
+                  </button>
+                )}
+                <button onClick={() => handleDelete(a._id)}
+                  className="px-4 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold flex items-center justify-center rounded-xl transition-all text-sm transition-colors" title="Delete Appointment">
+                  Delete
                 </button>
-              )}
+              </div>
             </div>
           ))}
 

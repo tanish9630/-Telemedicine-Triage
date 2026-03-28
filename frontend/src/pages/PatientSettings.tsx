@@ -1,13 +1,10 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  ArrowLeft, User, Mail, Lock, Heart, Phone, Bell, Shield, Trash2,
-  Save, CheckCircle2, Camera, Palette, Activity, AlertCircle, Settings,
-  Stethoscope, Calendar, MessageSquare
+  User, Mail, Lock, Heart, Phone, Bell, Shield, Trash2,
+  Save, CheckCircle2, Camera, Palette, AlertCircle, Settings
 } from 'lucide-react';
-import { ThemeToggle } from '../components/ThemeToggle';
-import { Footer } from '../components/Footer';
 
 const AVATAR_COLORS = [
   'from-indigo-500 to-purple-600',
@@ -73,15 +70,11 @@ export function PatientSettings() {
   ] as const;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-200 transition-colors flex flex-col">
+    <>
       {/* Header */}
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-white/5 px-6 py-4 sticky top-0 z-40 shadow-sm transition-colors">
+      <header className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-white/5 px-6 py-4 z-30 shadow-sm transition-colors">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <button onClick={() => navigate('/patient/dashboard')}
-              className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">
-              <ArrowLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
-            </button>
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-600/30">
                 <Settings className="w-5 h-5 text-white" />
@@ -91,22 +84,6 @@ export function PatientSettings() {
                 <p className="text-xs text-slate-500 dark:text-slate-400">Manage your profile & preferences</p>
               </div>
             </div>
-          </div>
-          <div className="flex items-center space-x-3">
-            <ThemeToggle />
-            {/* Nav Links */}
-            <nav className="hidden md:flex items-center space-x-1">
-              {[
-                { to: '/patient/dashboard', icon: <Activity className="w-4 h-4" />, label: 'Dashboard' },
-                { to: '/find-doctors', icon: <Stethoscope className="w-4 h-4" />, label: 'Doctors' },
-                { to: '/patient/calendar', icon: <Calendar className="w-4 h-4" />, label: 'Calendar' },
-              ].map(n => (
-                <Link key={n.to} to={n.to}
-                  className="flex items-center text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-2 rounded-xl hover:bg-indigo-50 dark:hover:bg-white/5 transition-colors">
-                  {n.icon}<span className="ml-1.5">{n.label}</span>
-                </Link>
-              ))}
-            </nav>
           </div>
         </div>
       </header>
@@ -336,8 +313,6 @@ export function PatientSettings() {
           </div>
         </div>
       </main>
-
-      <Footer />
-    </div>
+    </>
   );
 }

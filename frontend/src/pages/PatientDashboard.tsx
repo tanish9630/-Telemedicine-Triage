@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
-import { Activity, Heart, Droplets, Wind, MessageSquare, X, Send, CheckCircle2, Thermometer, Clock, Stethoscope, Calendar, Video, AlertTriangle, Shield, Zap, Info, Settings, Search, Phone, FileText, BookOpen, TrendingUp, Bell, Mic } from 'lucide-react';
+import { Activity, Heart, Droplets, Moon, MessageSquare, X, Send, CheckCircle2, Thermometer, Clock, Stethoscope, Calendar, Video, AlertTriangle, Shield, Zap, Info, Settings, Search, Phone, FileText, BookOpen, TrendingUp, Bell, Mic, Plus } from 'lucide-react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ThemeToggle } from '../components/ThemeToggle';
-import { Footer } from '../components/Footer';
-import { useCallNotification } from '../hooks/useCallNotification';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
@@ -20,14 +17,7 @@ interface Appointment {
   channelName: string | null;
 }
 
-const rand = (min: number, max: number) => +(Math.random() * (max - min) + min).toFixed(1);
-function generateVitalPoint() {
-  const now = new Date();
-  return {
-    time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
-    heartRate: rand(68, 88), oxygen: rand(95, 100), sugar: rand(85, 120), temp: rand(97.5, 99.5),
-  };
-}
+
 
 const HEALTH_TIPS = [
   { icon: '💧', tip: 'Drink at least 8 glasses of water today to stay hydrated.' },
@@ -106,7 +96,6 @@ export function PatientDashboard() {
   const [upcomingAppts, setUpcomingAppts] = useState<Appointment[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
-  const { incomingCall, dismissCall } = useCallNotification();
 
   const [intakeComplete, setIntakeComplete] = useState(() => localStorage.getItem('intakeComplete') === 'true');
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -118,7 +107,8 @@ export function PatientDashboard() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [tipIndex, setTipIndex] = useState(0);
 
-  const { isListening, startListening, stopListening, hasRecognitionSupport } = useSpeechRecognition({
+  const { isListening, isTranscribing, startListening, stopListening, hasRecognitionSupport } = useSpeechRecognition({
+    groqApiKey: GROQ_KEY,
     onResult: (transcript) => {
       setChatInput((prev) => (prev ? prev + ' ' + transcript : transcript));
     }
@@ -130,25 +120,52 @@ export function PatientDashboard() {
   };
 
   const [intakeData, setIntakeData] = useState({ age: '', gender: '', height: '', weight: '', bloodType: '', sugarLevel: '', oxygenLevel: '' });
-  const [liveVitals, setLiveVitals] = useState(() => Array.from({ length: 15 }, generateVitalPoint));
-  const [latestVital, setLatestVital] = useState(liveVitals[liveVitals.length - 1]);
+  const [weeklyVitals, setWeeklyVitals] = useState<any[]>([]);
+  const [todayVitals, setTodayVitals] = useState<any>({ heartRate: 0, sleep: 0, sugar: 0, temp: 0 });
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+  const [vitalForm, setVitalForm] = useState({ heartRate: '', sleep: '', sugar: '', temp: '' });
+
+  const fetchVitals = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API}/vitals/my`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setWeeklyVitals(data);
+        if (data.length > 0) setTodayVitals(data[data.length - 1]);
+      }
+    } catch (err) { console.error(err); }
+  }, [token]);
+
+  const handleLogVitals = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    try {
+      const res = await fetch(`${API}/vitals`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(vitalForm),
+      });
+      if (res.ok) {
+        setIsLogModalOpen(false);
+        setVitalForm({ heartRate: '', sleep: '', sugar: '', temp: '' });
+        fetchVitals();
+      }
+    } catch (err) { console.error(err); }
+  };
 
   const savedIntake = (() => { try { return JSON.parse(localStorage.getItem('intakeData') || '{}'); } catch { return {}; } })();
 
   useEffect(() => {
     if (!intakeComplete) return;
+    fetchVitals();
     if (token) {
       fetch(`${API}/appointments/my`, { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.json()).then(data => { if (Array.isArray(data)) setUpcomingAppts(data.filter((a: Appointment) => new Date(a.dateTime) >= new Date() && a.status !== 'rejected')); }).catch(() => {});
     }
-    const interval = setInterval(() => {
-      const point = generateVitalPoint();
-      setLiveVitals(prev => [...prev.slice(1), point]);
-      setLatestVital(point);
-    }, 2500);
     const tipInterval = setInterval(() => setTipIndex(i => (i + 1) % HEALTH_TIPS.length), 5000);
-    return () => { clearInterval(interval); clearInterval(tipInterval); };
-  }, [intakeComplete, token]);
+    return () => { clearInterval(tipInterval); };
+  }, [intakeComplete, token, fetchVitals]);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages, isTyping]);
 
@@ -180,12 +197,6 @@ export function PatientDashboard() {
   const initials = patientName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
   const avatarColor = localStorage.getItem('patient_avatar_color') || 'from-indigo-500 to-purple-600';
 
-  const NAV_ITEMS = [
-    { to: '/patient/dashboard', icon: <Activity className="w-5 h-5" />, label: 'Dashboard' },
-    { to: '/find-doctors', icon: <Stethoscope className="w-5 h-5" />, label: 'Doctors' },
-    { to: '/patient/calendar', icon: <Calendar className="w-5 h-5" />, label: 'Calendar' },
-    { to: '/patient/settings', icon: <Settings className="w-5 h-5" />, label: 'Settings' },
-  ];
 
   if (!intakeComplete) {
     return (
@@ -220,61 +231,8 @@ export function PatientDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-200 transition-colors flex flex-col">
-      {/* ── TOP NAV ── */}
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-white/5 px-4 py-3 flex items-center justify-between sticky top-0 z-40 shadow-sm transition-colors">
-        <div className="flex items-center space-x-3">
-          <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-md shadow-indigo-600/20">
-            <Activity className="w-5 h-5 text-white" />
-          </div>
-          <span className="text-lg font-bold text-slate-900 dark:text-white tracking-tight hidden sm:block">CareConnect</span>
-        </div>
+    <>
 
-        {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center bg-slate-50 dark:bg-white/5 rounded-2xl p-1 space-x-1">
-          {NAV_ITEMS.map(item => {
-            const active = location.pathname === item.to;
-            return (
-              <Link key={item.to} to={item.to}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${active ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-800'}`}>
-                {item.icon}<span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="flex items-center space-x-2">
-          {/* AI Button in nav */}
-          <button onClick={() => setIsChatOpen(true)}
-            className="flex items-center space-x-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-md shadow-indigo-600/30 hover:opacity-90 transition-all relative">
-            <MessageSquare className="w-4 h-4" />
-            <span className="hidden sm:block">AI Chat</span>
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full border-2 border-white dark:border-slate-900 animate-pulse" />
-          </button>
-          <ThemeToggle />
-          <button onClick={handleSignOut} className="hidden md:block text-xs font-semibold text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 transition-colors px-2">Sign Out</button>
-          <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${avatarColor} flex items-center justify-center text-white font-bold text-xs shadow-sm`}>{initials}</div>
-        </div>
-      </header>
-
-      {/* Mobile Bottom Nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-white/10 flex items-center justify-around px-4 py-2 shadow-xl">
-        {NAV_ITEMS.map(item => {
-          const active = location.pathname === item.to;
-          return (
-            <Link key={item.to} to={item.to}
-              className={`flex flex-col items-center py-1 px-3 rounded-xl transition-colors ${active ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`}>
-              {item.icon}
-              <span className="text-[10px] font-semibold mt-0.5">{item.label}</span>
-            </Link>
-          );
-        })}
-        <button onClick={() => setIsChatOpen(true)} className="flex flex-col items-center py-1 px-3 rounded-xl text-indigo-600 dark:text-indigo-400 relative">
-          <MessageSquare className="w-5 h-5" />
-          <span className="text-[10px] font-semibold mt-0.5">AI</span>
-          <span className="absolute top-0 right-2 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-white dark:border-slate-900 animate-pulse" />
-        </button>
-      </nav>
 
       <main className="max-w-6xl mx-auto p-4 md:p-6 space-y-6 flex-1 w-full pb-20 md:pb-6">
         {/* Welcome Banner */}
@@ -283,9 +241,10 @@ export function PatientDashboard() {
           <div className="absolute bottom-0 left-32 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
           <div className="relative z-10">
             <h1 className="text-2xl md:text-3xl font-bold mb-1">Hello, {patientName.split(' ')[0]}! 👋</h1>
-            <p className="text-indigo-100 text-sm mb-5">Your health vitals are streaming live. AI Assistant is ready.</p>
+            <p className="text-indigo-100 text-sm mb-5">Your daily health vitals have been logged. AI Assistant is ready.</p>
             <div className="flex flex-wrap gap-3">
-              <div className="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-lg flex items-center border border-white/10 text-xs"><CheckCircle2 className="w-3.5 h-3.5 mr-1.5 text-emerald-300" /> Vitals Streaming</div>
+              <div className="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-lg flex items-center border border-white/10 text-xs"><CheckCircle2 className="w-3.5 h-3.5 mr-1.5 text-emerald-300" /> Daily Log Saved</div>
+              <button onClick={() => setIsLogModalOpen(true)} className="bg-emerald-500 text-white font-bold px-4 py-1.5 rounded-lg text-xs hover:bg-emerald-600 transition-colors flex items-center shadow-sm"><Plus className="w-3.5 h-3.5 mr-1.5" /> Log Vitals</button>
               <button onClick={() => setIsChatOpen(true)} className="bg-white text-indigo-700 font-bold px-4 py-1.5 rounded-lg text-xs hover:bg-indigo-50 transition-colors flex items-center shadow-sm"><MessageSquare className="w-3.5 h-3.5 mr-1.5" /> Open AI Triage</button>
               <Link to="/find-doctors" className="bg-white/20 backdrop-blur-md border border-white/20 text-white font-semibold px-4 py-1.5 rounded-lg text-xs hover:bg-white/30 transition-colors flex items-center"><Search className="w-3.5 h-3.5 mr-1.5" /> Find Doctors</Link>
             </div>
@@ -337,10 +296,10 @@ export function PatientDashboard() {
 
         {/* Vitals Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <VitalCard icon={<Heart className="w-5 h-5" />} label="Heart Rate" value={`${latestVital.heartRate}`} unit="bpm" color="rose" />
-          <VitalCard icon={<Wind className="w-5 h-5" />} label="SpO₂" value={`${latestVital.oxygen}`} unit="%" color="blue" />
-          <VitalCard icon={<Droplets className="w-5 h-5" />} label="Blood Sugar" value={`${latestVital.sugar}`} unit="mg/dL" color="amber" />
-          <VitalCard icon={<Thermometer className="w-5 h-5" />} label="Temperature" value={`${latestVital.temp}`} unit="°F" color="emerald" />
+          <VitalCard icon={<Heart className="w-5 h-5" />} label="Avg Heart Rate" value={`${todayVitals.heartRate}`} unit="bpm" color="rose" />
+          <VitalCard icon={<Moon className="w-5 h-5" />} label="Sleep Tracker" value={`${todayVitals.sleep}`} unit="hrs" color="blue" />
+          <VitalCard icon={<Droplets className="w-5 h-5" />} label="Blood Sugar" value={`${todayVitals.sugar}`} unit="mg/dL" color="amber" />
+          <VitalCard icon={<Thermometer className="w-5 h-5" />} label="Temperature" value={`${todayVitals.temp}`} unit="°F" color="emerald" />
         </div>
 
         {/* Charts + Health Tip + Appointments */}
@@ -349,43 +308,37 @@ export function PatientDashboard() {
           <div className="lg:col-span-2 space-y-5">
             <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100 dark:border-white/5 shadow-sm transition-colors">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-base font-bold text-slate-900 dark:text-white">Heart Rate & O₂</h2>
-                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center animate-pulse"><div className="w-2 h-2 bg-emerald-500 rounded-full mr-1.5" /> Live</span>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white">Weekly Heart Rate & Sleep</h2>
               </div>
-              <div className="h-48">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={liveVitals} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="hrGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3} /><stop offset="95%" stopColor="#f43f5e" stopOpacity={0} /></linearGradient>
-                      <linearGradient id="o2Grad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} /><stop offset="95%" stopColor="#3b82f6" stopOpacity={0} /></linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" className="dark:opacity-10" />
-                    <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 9 }} dy={6} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} domain={[60, 110]} />
-                    <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }} />
-                    <Area type="monotone" dataKey="heartRate" isAnimationActive={false} stroke="#f43f5e" strokeWidth={2} fillOpacity={1} fill="url(#hrGrad)" name="Heart Rate" />
-                    <Area type="monotone" dataKey="oxygen" isAnimationActive={false} stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#o2Grad)" name="SpO₂ %" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+              <ResponsiveContainer width="100%" height={192}>
+                <AreaChart data={weeklyVitals} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="hrGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3} /><stop offset="95%" stopColor="#f43f5e" stopOpacity={0} /></linearGradient>
+                    <linearGradient id="o2Grad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} /><stop offset="95%" stopColor="#3b82f6" stopOpacity={0} /></linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" className="dark:opacity-10" />
+                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} dy={6} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} domain={['auto', 'auto']} />
+                  <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }} />
+                  <Area type="monotone" dataKey="heartRate" isAnimationActive={true} stroke="#f43f5e" strokeWidth={2} fillOpacity={1} fill="url(#hrGrad)" name="Heart Rate" />
+                  <Area type="monotone" dataKey="sleep" isAnimationActive={true} stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#o2Grad)" name="Sleep Hrs" />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
             <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100 dark:border-white/5 shadow-sm transition-colors">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-base font-bold text-slate-900 dark:text-white">Sugar & Temperature</h2>
-                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center animate-pulse"><div className="w-2 h-2 bg-emerald-500 rounded-full mr-1.5" /> Live</span>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white">Sugar & Temperature Trends</h2>
               </div>
-              <div className="h-48">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={liveVitals} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" className="dark:opacity-10" />
-                    <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 9 }} dy={6} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} />
-                    <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }} />
-                    <Line type="monotone" dataKey="sugar" isAnimationActive={false} stroke="#f59e0b" strokeWidth={2.5} dot={false} name="Sugar (mg/dL)" />
-                    <Line type="monotone" dataKey="temp" isAnimationActive={false} stroke="#10b981" strokeWidth={2.5} dot={false} name="Temp (°F)" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              <ResponsiveContainer width="100%" height={192}>
+                <LineChart data={weeklyVitals} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" className="dark:opacity-10" />
+                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} dy={6} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} domain={['auto', 'auto']} />
+                  <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }} />
+                  <Line type="monotone" dataKey="sugar" isAnimationActive={true} stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 2 }} name="Sugar (mg/dL)" />
+                  <Line type="monotone" dataKey="temp" isAnimationActive={true} stroke="#10b981" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 2 }} name="Temp (°F)" />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </div>
 
@@ -414,9 +367,9 @@ export function PatientDashboard() {
               <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-3 flex items-center"><TrendingUp className="w-4 h-4 mr-2 text-indigo-500" /> Health Status</h3>
               <div className="space-y-3">
                 {[
-                  { label: 'Heart Rate', value: latestVital.heartRate, min: 60, max: 100, unit: 'bpm', color: '#f43f5e' },
-                  { label: 'Blood Oxygen', value: latestVital.oxygen, min: 94, max: 100, unit: '%', color: '#3b82f6' },
-                  { label: 'Blood Sugar', value: latestVital.sugar, min: 70, max: 140, unit: 'mg/dL', color: '#f59e0b' },
+                  { label: 'Avg Heart Rate', value: todayVitals.heartRate, min: 60, max: 100, unit: 'bpm', color: '#f43f5e' },
+                  { label: 'Sleep Logged', value: todayVitals.sleep, min: 0, max: 12, unit: 'hrs', color: '#3b82f6' },
+                  { label: 'Blood Sugar', value: todayVitals.sugar, min: 70, max: 140, unit: 'mg/dL', color: '#f59e0b' },
                 ].map(item => (
                   <div key={item.label}>
                     <div className="flex justify-between text-xs mb-1">
@@ -455,109 +408,173 @@ export function PatientDashboard() {
         </div>
       </main>
 
-      <Footer />
-
-      {/* ── INCOMING CALL POPUP ── */}
-      {incomingCall && (
-        <div className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-white/10 p-8 max-w-sm w-full text-center animate-bounce-in transition-colors">
-            <div className="w-20 h-20 bg-indigo-100 dark:bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-4 relative">
-              <Video className="w-10 h-10 text-indigo-600 dark:text-indigo-400" />
-              <div className="absolute inset-0 rounded-full border-4 border-indigo-400 animate-ping" />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">Incoming Video Call</h3>
-            <p className="text-slate-600 dark:text-slate-400 text-sm mb-6">
-              <span className="font-semibold text-indigo-600 dark:text-indigo-400">Dr. {incomingCall.callerName}</span> is calling you
-            </p>
-            <div className="flex gap-3">
-              <button onClick={dismissCall} className="flex-1 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 font-semibold py-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-sm">Decline</button>
-              <button onClick={() => { dismissCall(); navigate(`/consultation/${incomingCall.channelName}`); }}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center text-sm shadow-lg shadow-indigo-600/30">
-                <Video className="w-4 h-4 mr-2" /> Join Now
+      {/* Vital Log Modal */}
+      {isLogModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-white/10 w-full max-w-sm p-8 transition-colors">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Log Today's Vitals</h3>
+              <button onClick={() => setIsLogModalOpen(false)} className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">
+                <X className="w-5 h-5 text-slate-400" />
               </button>
             </div>
+            <form onSubmit={handleLogVitals} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Heart Rate (BPM)</label>
+                <input required type="number" value={vitalForm.heartRate} onChange={e => setVitalForm({...vitalForm, heartRate: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-colors" placeholder="e.g. 72" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Sleep Logged (hrs)</label>
+                <input required type="number" step="0.1" value={vitalForm.sleep} onChange={e => setVitalForm({...vitalForm, sleep: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-colors" placeholder="e.g. 8.5" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Blood Sugar (mg/dL)</label>
+                <input required type="number" value={vitalForm.sugar} onChange={e => setVitalForm({...vitalForm, sugar: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-colors" placeholder="e.g. 95" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Temperature (°F)</label>
+                <input required type="number" step="0.1" value={vitalForm.temp} onChange={e => setVitalForm({...vitalForm, temp: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-colors" placeholder="e.g. 98.6" />
+              </div>
+              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-indigo-600/30 flex justify-center items-center text-sm mt-4">
+                Save Daily Log
+              </button>
+            </form>
           </div>
         </div>
       )}
 
       {/* ── AI CHAT PANEL ── */}
-      <div className={`fixed bottom-6 right-6 z-50 transition-all duration-300 ${isChatOpen ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-10 opacity-0 pointer-events-none scale-95'}`}>
-        <div className="w-80 md:w-[400px] h-[560px] bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-white/10 flex flex-col overflow-hidden transition-colors">
-          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 flex justify-between items-center text-white">
-            <div className="flex items-center">
-              <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center mr-3 flex-shrink-0"><Activity className="w-5 h-5" /></div>
-              <div>
-                <h3 className="font-bold text-sm">Groq AI Assistant</h3>
-                <p className="text-xs text-indigo-200 flex items-center"><span className="w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1.5 animate-pulse" />Powered by Groq · Llama 3.3</p>
-              </div>
-            </div>
-            <button onClick={() => setIsChatOpen(false)} className="text-white hover:bg-white/10 p-1.5 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
-          </div>
+      {isChatOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-slate-900/20 dark:bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsChatOpen(false)} />
 
-          <div className="flex-1 bg-slate-50 dark:bg-slate-950 p-4 overflow-y-auto space-y-4 transition-colors">
-            {chatMessages.map((msg, i) => (
-              <div key={i} className="flex flex-col space-y-1">
-                <div className={`p-3 rounded-2xl text-sm max-w-[90%] shadow-sm ${msg.from === 'ai' ? 'bg-white dark:bg-slate-800 border border-slate-100 dark:border-white/5 text-slate-800 dark:text-slate-200 rounded-tl-sm self-start' : 'bg-indigo-600 text-white rounded-tr-sm self-end'}`}>
-                  {msg.text}
-                  {msg.urgencyLevel && URGENCY_META[msg.urgencyLevel] && (
-                    <div className={`mt-3 rounded-xl border p-3 ${URGENCY_META[msg.urgencyLevel].bg} ${URGENCY_META[msg.urgencyLevel].border}`}>
-                      <div className={`flex items-center font-bold text-xs mb-1.5 ${URGENCY_META[msg.urgencyLevel].color}`}>
-                        {URGENCY_META[msg.urgencyLevel].icon}<span className="ml-1.5">{URGENCY_META[msg.urgencyLevel].label}</span>
-                      </div>
-                      {msg.specialist && <p className={`text-xs font-semibold mb-1 ${URGENCY_META[msg.urgencyLevel].color}`}>🩺 Recommended: {msg.specialist}</p>}
-                      {msg.recommendation && <p className="text-xs text-slate-700 dark:text-slate-300 mb-2">{msg.recommendation}</p>}
-                      <Link to="/find-doctors" onClick={() => setIsChatOpen(false)} className="text-xs font-bold bg-indigo-600 text-white px-3 py-1 rounded-lg hover:bg-indigo-700 transition-colors">Book Appointment →</Link>
+          {/* Panel */}
+          <div className="relative w-full max-w-sm bg-white dark:bg-slate-900 shadow-2xl flex flex-col h-full border-l border-slate-100 dark:border-white/10 transition-colors">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-white/10 bg-white dark:bg-slate-900 transition-colors">
+              <div className="flex items-center space-x-3">
+                <div className="w-9 h-9 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-md">
+                  <MessageSquare className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-slate-900 dark:text-white">CareConnect AI</div>
+                  <div className="text-xs text-emerald-500 font-semibold flex items-center">
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-1 animate-pulse" />
+                    Powered by Groq · Llama 3.3
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setIsChatOpen(false)} className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+              {chatMessages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.from === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  {msg.from === 'ai' && (
+                    <div className="w-7 h-7 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center mr-2 flex-shrink-0 mt-0.5 shadow-sm">
+                      <MessageSquare className="w-3.5 h-3.5 text-white" />
                     </div>
                   )}
+                  <div className={`max-w-[82%] ${msg.from === 'user' ? 'items-end' : 'items-start'} flex flex-col`}>
+                    <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm ${
+                      msg.from === 'user'
+                        ? 'bg-indigo-600 text-white rounded-br-sm'
+                        : 'bg-slate-50 dark:bg-white/5 text-slate-800 dark:text-slate-200 rounded-bl-sm border border-slate-100 dark:border-white/10'
+                    }`}>
+                      {msg.text}
+                    </div>
+                    {msg.urgencyLevel && URGENCY_META[msg.urgencyLevel] && (
+                      <div className={`mt-2 px-3 py-2 rounded-xl border ${URGENCY_META[msg.urgencyLevel].bg} ${URGENCY_META[msg.urgencyLevel].border} text-xs`}>
+                        <div className={`flex items-center font-bold mb-1 ${URGENCY_META[msg.urgencyLevel].color}`}>
+                          {URGENCY_META[msg.urgencyLevel].icon}
+                          <span className="ml-1">{URGENCY_META[msg.urgencyLevel].label}</span>
+                        </div>
+                        {msg.specialist && <div className="text-slate-600 dark:text-slate-400">👨‍⚕️ See: <span className="font-semibold">{msg.specialist}</span></div>}
+                        {msg.recommendation && <div className="text-slate-600 dark:text-slate-400 mt-0.5 mb-2">💡 {msg.recommendation}</div>}
+                        {msg.specialist && (
+                          <Link 
+                            to={`/find-doctors?specialty=${encodeURIComponent(msg.specialist)}`}
+                            className="mt-2 block w-full text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg py-1.5 text-indigo-600 dark:text-indigo-400 font-bold hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                          >
+                            Find {msg.specialist}
+                          </Link>
+                        )}
+                      </div>
+                    )}
+                    <span className="text-[10px] text-slate-400 mt-1 px-1">{msg.time}</span>
+                  </div>
                 </div>
-                <div className={`text-[10px] text-slate-400 ${msg.from === 'ai' ? 'self-start ml-1' : 'self-end mr-1'}`}>{msg.time}</div>
-              </div>
-            ))}
-            {isTyping && (
-              <div className="flex items-center space-x-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-white/5 px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm self-start w-fit">
-                <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-              </div>
-            )}
-            <div ref={chatEndRef} />
-          </div>
+              ))}
+              {isTyping && (
+                <div className="flex justify-start">
+                  <div className="w-7 h-7 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center mr-2 flex-shrink-0 shadow-sm">
+                    <MessageSquare className="w-3.5 h-3.5 text-white" />
+                  </div>
+                  <div className="bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 px-4 py-3 rounded-2xl rounded-bl-sm">
+                    <div className="flex items-center space-x-1.5">
+                      {[0, 1, 2].map(i => (
+                        <div key={i} className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
 
-          <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-white/10 transition-colors">
-            <div className="relative flex items-center">
-              <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSendChat()}
-                placeholder={isListening ? "Listening..." : "Describe your symptoms..."}
-                className={`w-full bg-slate-50 dark:bg-slate-800 border rounded-full py-3 pl-4 ${hasRecognitionSupport ? 'pr-24' : 'pr-12'} text-sm outline-none focus:ring-1 transition-all text-slate-900 dark:text-white ${isListening ? 'border-rose-400 focus:border-rose-400 ring-rose-400/20 ring-4' : 'border-slate-200 dark:border-white/10 focus:border-indigo-500 focus:ring-indigo-500'}`} />
-              
-              <div className="absolute right-1.5 flex items-center space-x-1">
-                {hasRecognitionSupport && (
-                  <button 
-                    onClick={toggleListening} 
-                    className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors ${isListening ? 'bg-rose-100 text-rose-600 dark:bg-rose-500/20' : 'text-slate-400 hover:text-indigo-600 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
-                    title={isListening ? "Stop listening" : "Start voice typing"}
-                  >
-                    {isListening ? <Mic className="w-5 h-5 animate-pulse" /> : <Mic className="w-5 h-5" />}
-                  </button>
-                )}
-                <button onClick={handleSendChat} disabled={!chatInput.trim() && !isListening} className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors ${chatInput.trim() ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600 cursor-not-allowed'}`}>
-                  <Send className="w-4 h-4 ml-0.5" />
+            {/* Input */}
+            <div className="px-4 py-4 border-t border-slate-100 dark:border-white/10 bg-white dark:bg-slate-900 transition-colors">
+              <div className="flex items-end space-x-2">
+                <button
+                  onClick={toggleListening}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${
+                    isListening
+                      ? 'bg-rose-500 text-white animate-pulse shadow-lg shadow-rose-500/30'
+                      : 'bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/20'
+                  }`}
+                  title={isListening ? 'Stop recording' : 'Voice input'}
+                >
+                  <Mic className="w-4 h-4" />
+                </button>
+                <div className="flex-1 relative">
+                  <textarea
+                    value={chatInput}
+                    onChange={e => setChatInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendChat(); } }}
+                    placeholder="Describe your symptoms..."
+                    rows={1}
+                    className="w-full px-4 py-3 pr-10 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 resize-none transition-all"
+                    style={{ maxHeight: '120px', overflowY: 'auto' }}
+                  />
+                </div>
+                <button
+                  onClick={handleSendChat}
+                  disabled={!chatInput.trim() || isTyping}
+                  className="w-10 h-10 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl flex items-center justify-center flex-shrink-0 transition-all shadow-md"
+                >
+                  <Send className="w-4 h-4" />
                 </button>
               </div>
+              {isListening && (
+                <p className="text-xs text-rose-500 font-medium mt-2 text-center animate-pulse">🎙 Listening... speak now</p>
+              )}
             </div>
-            <p className="text-[10px] text-slate-400 text-center mt-1.5">Powered by Groq AI · Not a substitute for medical advice</p>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* FAB when chat closed (mobile) */}
-      <button onClick={() => setIsChatOpen(true)} className={`fixed bottom-20 md:bottom-6 right-6 w-14 h-14 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-full shadow-xl shadow-indigo-600/30 flex items-center justify-center text-white hover:scale-110 transition-all duration-300 z-40 md:z-40 ${isChatOpen ? 'opacity-0 pointer-events-none scale-0' : 'opacity-100 scale-100'}`}>
+      {/* FAB to open chat (when chat is closed) */}
+      <button onClick={() => setIsChatOpen(true)} className={`fixed bottom-20 md:bottom-6 right-6 w-14 h-14 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-full shadow-xl shadow-indigo-600/30 flex items-center justify-center text-white hover:scale-110 transition-all duration-300 z-40 ${isChatOpen ? 'opacity-0 pointer-events-none scale-0' : 'opacity-100 scale-100'}`}>
         <MessageSquare className="w-6 h-6" />
         <span className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900 animate-pulse flex items-center justify-center text-white text-[9px] font-bold">AI</span>
       </button>
-    </div>
+    </>
   );
 }
-
 function VitalCard({ icon, label, value, unit, color }: { icon: React.ReactNode; label: string; value: string; unit: string; color: string }) {
   const colorMap: Record<string, { wrapper: string; icon: string }> = {
     rose: { wrapper: 'bg-rose-100 dark:bg-rose-500/10 ring-1 ring-rose-200 dark:ring-rose-500/20', icon: 'text-rose-500' },

@@ -87,6 +87,24 @@ router.patch('/:id/status', protect, async (req, res) => {
   }
 });
 
+// DELETE /api/appointments/:id — delete appointment
+router.delete('/:id', protect, async (req, res) => {
+  try {
+    const appt = await Appointment.findById(req.params.id);
+    if (!appt) return res.status(404).json({ message: 'Appointment not found' });
+    
+    // Only the assigned doctor (or patient) should be able to delete it
+    if (String(appt.doctor) !== String(req.user._id) && String(appt.patient) !== String(req.user._id)) {
+      return res.status(403).json({ message: 'Not authorised to delete this appointment' });
+    }
+
+    await appt.deleteOne();
+    res.json({ message: 'Appointment removed' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
 // GET /api/appointments/analytics — doctor dashboard metrics
 router.get('/analytics', protect, async (req, res) => {
   try {

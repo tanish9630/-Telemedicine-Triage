@@ -36,21 +36,24 @@ function getStoredAuth(): { user: User | null; token: string | null } {
 }
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  // Initialise synchronously from localStorage — no loading flash
+  // Initialise synchronously from localStorage as optimistic state
   const stored = getStoredAuth();
   const [user, setUser] = useState<User | null>(stored.user);
   const [token, setToken] = useState<string | null>(stored.token);
-  // loading is false immediately if we already have a stored user
-  const [loading, setLoading] = useState(!stored.user);
+  // Always start loading=true so RoleProtectedRoute waits for server validation
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
     if (!storedToken) {
+      // No token at all — clear any stale user and stop loading
+      setUser(null);
+      setToken(null);
       setLoading(false);
       return;
     }
 
-    // Silently validate token in background
+    // Always validate token against server — server is source of truth for role
     const validate = async () => {
       try {
         const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
@@ -60,9 +63,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         if (response.ok) {
           const userData = await response.json();
+          // Server confirmed role — overwrite any cached/stale data
           setUser(userData);
           setToken(storedToken);
-          // Keep stored user in sync
           localStorage.setItem('authUser', JSON.stringify(userData));
         } else if (response.status === 401) {
           // Truly expired/invalid token — clear everything
@@ -73,7 +76,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
         // Any other error (500, network down) — keep the existing state
       } catch {
-        // Network error — don't log out, just keep current state
+        // Network error — keep current cached state so app still works offline
         console.warn('Background auth validation failed (network issue). Keeping session.');
       } finally {
         setLoading(false);

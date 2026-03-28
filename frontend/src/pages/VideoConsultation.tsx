@@ -19,6 +19,12 @@ export function VideoConsultation() {
   const [localAudioTrack, setLocalAudioTrack] = useState<IMicrophoneAudioTrack | null>(null);
   const [remoteUsers, setRemoteUsers] = useState<IAgoraRTCRemoteUser[]>([]);
 
+  // Captions State
+  const [remoteSubtitle, setRemoteSubtitle] = useState('');
+  const [localSubtitle, setLocalSubtitle] = useState('');
+  const subtitleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const localSubtitleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [micMuted, setMicMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
 
@@ -35,13 +41,21 @@ export function VideoConsultation() {
     }
   }, []);
 
+  const joining = useRef(false);
+
   useEffect(() => {
     if (!APP_ID) {
-      alert('Please add your Agora APP_ID to the .env file.');
+      console.error('Please add your Agora APP_ID to the .env file.');
       return;
     }
 
     const initAgora = async () => {
+      if (joining.current) return;
+      joining.current = true;
+
+      // Broadcast call started immediately so other tabs get it before any Agora await delays
+      notifyCallStarted(channelName || 'call', user?.fullName || 'Unknown', user?.role || 'patient');
+
       client.current = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
 
       client.current.on('user-published', async (user, mediaType) => {
@@ -82,14 +96,17 @@ export function VideoConsultation() {
 
         await client.current.publish([audioTrack, videoTrack]);
         setJoined(true);
-        // Broadcast call started to other tabs
-        notifyCallStarted(channelName || 'call', user?.fullName || 'Unknown', user?.role || 'patient');
         // Mark appointment as completed in localStorage
         const completedKey = `completed_${channelName}`;
         localStorage.setItem(completedKey, 'true');
-      } catch (error) {
+      } catch (error: any) {
         console.error('Agora Error: ', error);
-        alert('Failed to join video room. Check console for details.');
+        // Ignore "already joined" errors caused by React 18 Strict Mode
+        if (error?.code !== 'UID_ALREADY_JOINED') {
+          // Silent fail or soft UI error instead of blocking alert
+        }
+      } finally {
+        joining.current = false;
       }
     };
 
@@ -99,8 +116,55 @@ export function VideoConsultation() {
       localTrackRef.current?.close();
       localAudioTrack?.close();
       client.current?.leave();
+      joining.current = false;
     };
-  }, [channelName]);
+  }, [channelName, user]);
+
+  // Handle Speech Recognition & Broadcast
+  useEffect(() => {
+    const bc = new BroadcastChannel('careconnect-subtitles');
+    bc.onmessage = (event) => {
+      if (event.data.channelName === channelName && event.data.role !== user?.role) {
+        setRemoteSubtitle(event.data.text);
+        if (subtitleTimeoutRef.current) clearTimeout(subtitleTimeoutRef.current);
+        subtitleTimeoutRef.current = setTimeout(() => setRemoteSubtitle(''), 5000);
+      }
+    };
+
+    if (!joined || micMuted) {
+      return () => bc.close();
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return () => bc.close();
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = (event: any) => {
+      let finalTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        finalTranscript += event.results[i][0].transcript;
+      }
+      if (finalTranscript.trim()) {
+        bc.postMessage({ channelName, role: user?.role, text: finalTranscript.trim() });
+        setLocalSubtitle(finalTranscript.trim());
+        if (localSubtitleTimeoutRef.current) clearTimeout(localSubtitleTimeoutRef.current);
+        localSubtitleTimeoutRef.current = setTimeout(() => setLocalSubtitle(''), 5000);
+      }
+    };
+
+    recognition.onerror = () => {};
+
+    try { recognition.start(); } catch {}
+
+    return () => {
+      try { recognition.stop(); } catch {}
+      bc.close();
+    };
+  }, [joined, micMuted, channelName, user]);
 
   const toggleMic = async () => {
     if (localAudioTrack) {
@@ -171,6 +235,15 @@ export function VideoConsultation() {
           ) : remoteUsers.map(u => (
             <RemoteVideoPlayer key={u.uid} user={u} />
           ))}
+
+          {/* Remote Captions */}
+          {remoteSubtitle && (
+            <div className="absolute bottom-8 left-0 right-0 flex justify-center px-10 pointer-events-none z-20">
+              <div className="bg-slate-900/80 backdrop-blur-md text-white px-6 py-3 rounded-2xl text-lg md:text-xl font-medium shadow-2xl text-center max-w-3xl border border-white/10 transition-all animate-in fade-in slide-in-from-bottom-2">
+                {remoteSubtitle}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right sidebar: self-view + info */}
@@ -194,6 +267,12 @@ export function VideoConsultation() {
             {!joined && !cameraOff && (
               <div className="absolute inset-0 flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 transition-colors">
                 <Loader2 className="w-8 h-8 animate-spin" />
+              </div>
+            )}
+            {/* Local Captions */}
+            {localSubtitle && (
+              <div className="absolute top-2 left-2 right-2 bg-slate-900/80 backdrop-blur-sm px-3 py-2 rounded-xl text-white text-xs font-semibold text-center pointer-events-none z-20 border border-white/10 transition-all animate-in fade-in line-clamp-2 leading-snug">
+                {localSubtitle}
               </div>
             )}
             <div className="absolute bottom-2 left-2 bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm px-2 py-1 rounded-lg text-slate-900 dark:text-white text-xs font-semibold z-10 shadow-sm border border-slate-200/50 dark:border-slate-700/50">

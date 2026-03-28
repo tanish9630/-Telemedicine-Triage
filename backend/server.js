@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import appointmentRoutes from './routes/appointmentRoutes.js';
+import vitalRoutes from './routes/vitalRoutes.js';
 
 dotenv.config();
 
@@ -20,6 +21,7 @@ app.use(express.json());
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/appointments', appointmentRoutes);
+app.use('/api/vitals', vitalRoutes);
 
 // Basic health check route
 app.get('/api/health', (req, res) => {

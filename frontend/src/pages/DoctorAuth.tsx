@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Stethoscope, ChevronRight, Loader2, Mail, Lock, User, FileText, Calendar as CalendarIcon, Activity, BarChart3, Users, Video, CheckCircle2, Heart, Briefcase } from 'lucide-react';
+import { ShieldCheck, Stethoscope, ChevronRight, Loader2, Mail, Lock, User, FileText, Calendar as CalendarIcon, Activity, BarChart3, Users, Video, CheckCircle2, Heart, Briefcase, MapPin } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const SPECIALIZATIONS = [
@@ -48,8 +48,27 @@ export function DoctorAuth() {
   const [council, setCouncil] = useState('');
   const [regYear, setRegYear] = useState('');
   const [specialization, setSpecialization] = useState('');
+  const [address, setAddress] = useState('');
+  const [coords, setCoords] = useState<{lat: number|null, lng: number|null}>({lat: null, lng: null});
+  const [locLoading, setLocLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
+
+  const handleGetLocation = () => {
+    setLocLoading(true);
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocLoading(false);
+      }, () => {
+        alert('Location access denied. Please enable GPS.');
+        setLocLoading(false);
+      });
+    } else {
+      alert('Geolocation is not supported by this browser.');
+      setLocLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +84,7 @@ export function DoctorAuth() {
             specialization: specialization,
             medicalCouncil: council,
             yearOfRegistration: regYear,
+            location: { lat: coords.lat, lng: coords.lng, address }
           };
 
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
@@ -228,6 +248,28 @@ export function DoctorAuth() {
                   <div className="relative">
                     <CalendarIcon className="absolute left-3 top-3.5 w-5 h-5 text-slate-400" />
                     <input required type="number" min="1950" max="2026" value={regYear} onChange={e => setRegYear(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all" placeholder="YYYY" />
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-100">
+                  <h3 className="text-base font-bold text-slate-900 flex items-center mb-1"><MapPin className="w-5 h-5 mr-2 text-indigo-600" /> Clinic Address (For SOS Dispatch)</h3>
+                  <p className="text-xs text-slate-500 mb-4">Required so patients can quickly reach you in an emergency.</p>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Full Address</label>
+                      <input required type="text" value={address} onChange={e => setAddress(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all" placeholder="123 Care Street, City" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">GPS Coordinates <span className="text-xs text-rose-500 font-normal">(Compulsory for SOS)</span></label>
+                      <div className="flex gap-2">
+                        <input disabled type="text" value={coords.lat ? `${coords.lat.toFixed(4)}, ${coords.lng?.toFixed(4)}` : 'Coordinates not fetched'} className="flex-1 px-4 py-3 border border-slate-200 rounded-xl bg-slate-100 text-sm text-slate-500" />
+                        <button type="button" onClick={handleGetLocation} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-4 py-3 rounded-xl transition-colors text-sm whitespace-nowrap flex items-center">
+                          {locLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4 mr-1.5" />} Fetch GPS
+                        </button>
+                      </div>
+                      {!coords.lat && <p className="text-xs text-amber-600 mt-1">You must fetch GPS to receive SOS alerts</p>}
+                    </div>
                   </div>
                 </div>
               </div>

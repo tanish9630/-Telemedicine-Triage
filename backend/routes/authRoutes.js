@@ -10,7 +10,7 @@ const router = express.Router();
 // @access  Public
 router.post('/signup', async (req, res) => {
   try {
-    const { fullName, email, password, role, registrationNumber, specialization } = req.body;
+    const { fullName, email, password, role, registrationNumber, specialization, location } = req.body;
 
     const userExists = await User.findOne({ email });
 
@@ -25,6 +25,7 @@ router.post('/signup', async (req, res) => {
       role,
       registrationNumber: role === 'doctor' ? registrationNumber : undefined,
       specialization: role === 'doctor' ? specialization : undefined,
+      location: role === 'doctor' ? location : undefined,
     });
 
     if (user) {

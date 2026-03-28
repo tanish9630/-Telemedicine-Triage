@@ -17,10 +17,12 @@ import { RoleProtectedRoute } from './components/RoleProtectedRoute';
 
 import { PatientLayout } from './components/PatientLayout';
 import { DoctorLayout } from './components/DoctorLayout';
+import { SocketProvider } from './context/SocketContext';
 
 function App() {
   return (
-    <Router>
+    <SocketProvider>
+      <Router>
       <Routes>
         <Route path="/" element={<LandingPage />} />
 
@@ -54,6 +56,7 @@ function App() {
         <Route path="/consultation/:channelName" element={<VideoConsultation />} />
       </Routes>
     </Router>
+    </SocketProvider>
   );
 }
 

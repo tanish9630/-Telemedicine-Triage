@@ -1,7 +1,9 @@
 import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Calendar as CalendarIcon, Users, Settings, Activity, LogOut, Video } from 'lucide-react';
+import { LayoutDashboard, Calendar as CalendarIcon, Users, Settings, Activity, LogOut, Video, AlertTriangle, MapPin } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCallNotification } from '../hooks/useCallNotification';
+import { useSocket } from '../context/SocketContext';
+import { useState, useEffect, useRef } from 'react';
 
 function NavItem({ icon, label, to, active }: { icon: React.ReactNode; label: string; to: string; active?: boolean }) {
   return (
@@ -16,6 +18,58 @@ export function DoctorLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { incomingCall, dismissCall } = useCallNotification();
+  const { socket } = useSocket();
+  
+  const [sosAlert, setSosAlert] = useState<any>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const sirenIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleSOS = (data: any) => {
+      const isNearest = data.nearestDoctorId === user?._id;
+      setSosAlert({ ...data, isNearest });
+
+      try {
+        if (!audioCtxRef.current) audioCtxRef.current = new window.AudioContext();
+        if (audioCtxRef.current.state === 'suspended') audioCtxRef.current.resume();
+        
+        if (!sirenIntervalRef.current) {
+          sirenIntervalRef.current = setInterval(() => {
+            if (!audioCtxRef.current) return;
+            const osc = audioCtxRef.current.createOscillator();
+            const gain = audioCtxRef.current.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtxRef.current.destination);
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(880, audioCtxRef.current.currentTime);
+            osc.frequency.linearRampToValueAtTime(440, audioCtxRef.current.currentTime + 0.3);
+            gain.gain.setValueAtTime(0.1, audioCtxRef.current.currentTime);
+            osc.start();
+            osc.stop(audioCtxRef.current.currentTime + 0.5);
+          }, 600);
+        }
+      } catch (e) {
+        console.warn('Audio play failed', e);
+      }
+    };
+
+    socket.on('critical_sos_alert', handleSOS);
+
+    return () => {
+      socket.off('critical_sos_alert', handleSOS);
+      if (sirenIntervalRef.current) clearInterval(sirenIntervalRef.current);
+    };
+  }, [socket, user]);
+
+  const dismissSOS = () => {
+    setSosAlert(null);
+    if (sirenIntervalRef.current) {
+      clearInterval(sirenIntervalRef.current);
+      sirenIntervalRef.current = null;
+    }
+  };
 
   const doctorName = user?.fullName || localStorage.getItem('doctorName') || 'Doctor';
   const initials = doctorName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
@@ -122,6 +176,52 @@ export function DoctorLayout() {
                 onClick={() => { dismissCall(); navigate(`/consultation/${incomingCall.channelName}`); }}
                 className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center text-sm shadow-lg shadow-indigo-600/30">
                 <Video className="w-4 h-4 mr-2" /> Join Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SOS Alert Popup */}
+      {sosAlert && (
+        <div className="fixed inset-0 bg-rose-900/90 backdrop-blur-md z-[10000] flex items-center justify-center p-4 overflow-hidden">
+          <div className="absolute inset-0 bg-rose-500/20 animate-pulse pointer-events-none" />
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl shadow-rose-900/50 border border-rose-500/30 p-8 max-w-lg w-full text-center relative z-10 animate-bounce-in">
+            <div className="w-24 h-24 bg-rose-100 dark:bg-rose-500/20 rounded-full flex items-center justify-center mx-auto mb-6 relative">
+              <AlertTriangle className="w-12 h-12 text-rose-600 dark:text-rose-400 animate-pulse" />
+              <div className="absolute inset-0 rounded-full border-4 border-rose-500 animate-ping opacity-75" />
+            </div>
+            
+            <h2 className="text-3xl font-black text-rose-600 dark:text-rose-400 mb-2 tracking-tight uppercase">CRITICAL SOS ALERT</h2>
+            <p className="text-slate-800 dark:text-white text-lg font-medium mb-1">
+              {sosAlert.message}
+            </p>
+            {sosAlert.isNearest ? (
+              <p className="text-rose-600 dark:text-rose-400 font-bold text-sm bg-rose-50 dark:bg-rose-500/10 py-2 rounded-lg mb-6 shadow-inner ring-1 ring-rose-200 dark:ring-rose-500/30">
+                You are the nearest available doctor! Immediate action required.
+              </p>
+            ) : (
+              <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
+                Broadcast to all online doctors.
+              </p>
+            )}
+
+            {sosAlert.emergency?.location?.lat !== 0 && (
+              <div className="bg-slate-50 dark:bg-white/5 p-4 rounded-2xl mb-6 text-left border border-slate-100 dark:border-white/10 flex items-start">
+                <MapPin className="w-5 h-5 text-indigo-500 mt-0.5 mr-3 flex-shrink-0" />
+                <div>
+                  <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Patient Location</div>
+                  <div className="text-slate-900 dark:text-white font-medium text-sm">
+                    {sosAlert.emergency.location.lat.toFixed(6)}, {sosAlert.emergency.location.lng.toFixed(6)}
+                  </div>
+                  <a href={`https://www.google.com/maps/search/?api=1&query=${sosAlert.emergency.location.lat},${sosAlert.emergency.location.lng}`} target="_blank" rel="noreferrer" className="text-indigo-600 dark:text-indigo-400 text-xs font-bold hover:underline mt-1 inline-block" onClick={(e) => e.stopPropagation()}>Open in Google Maps ↗</a>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-4">
+              <button onClick={dismissSOS} className="flex-1 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 font-bold py-4 rounded-xl transition-colors shadow-sm">
+                Acknowledge & Dismiss
               </button>
             </div>
           </div>

@@ -1,15 +1,58 @@
 import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
-import { Activity, Stethoscope, Calendar, Settings, Video, MessageSquare } from 'lucide-react';
+import { Activity, Stethoscope, Calendar, Settings, Video, MessageSquare, AlertTriangle, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ThemeToggle } from './ThemeToggle';
 import { Footer } from './Footer';
 import { useCallNotification } from '../hooks/useCallNotification';
+import { useState } from 'react';
 
 export function PatientLayout() {
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const { incomingCall, dismissCall } = useCallNotification();
+  const [sosStatus, setSosStatus] = useState<'idle' | 'loading' | 'active'>('idle');
+
+  const handleSOS = async () => {
+    if (!token) return;
+    if (!window.confirm("Are you sure you want to trigger an Emergency SOS? This will alert the nearest doctor immediately.")) return;
+    
+    setSosStatus('loading');
+    
+    const sendSOS = async (lat: number | null, lng: number | null) => {
+      try {
+        const API = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+        const res = await fetch(`${API}/emergency`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ lat, lng })
+        });
+        if (res.ok) {
+          setSosStatus('active');
+          alert('SOS Alert Sent! The nearest doctor has been notified.');
+          setTimeout(() => setSosStatus('idle'), 10000);
+        } else {
+          setSosStatus('idle');
+          alert('Failed to send SOS. Please call emergency services directly.');
+        }
+      } catch (err) {
+        setSosStatus('idle');
+        alert('Network error. Call emergency services directly.');
+      }
+    };
+
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => sendSOS(pos.coords.latitude, pos.coords.longitude),
+        () => sendSOS(null, null)
+      );
+    } else {
+      sendSOS(null, null);
+    }
+  };
 
   const handleSignOut = () => {
     localStorage.removeItem('intakeComplete');
@@ -55,6 +98,15 @@ export function PatientLayout() {
         </nav>
 
         <div className="flex items-center space-x-2">
+          <button 
+            onClick={handleSOS}
+            disabled={sosStatus === 'loading' || sosStatus === 'active'}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${sosStatus === 'active' ? 'bg-emerald-500 text-white' : 'bg-rose-600 hover:bg-rose-700 text-white animate-pulse shadow-rose-600/30'}`}
+          >
+            {sosStatus === 'loading' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <AlertTriangle className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">{sosStatus === 'active' ? 'Dispatched' : 'SOS Request'}</span>
+          </button>
+
           <ThemeToggle />
           <button onClick={handleSignOut} className="hidden md:block text-xs font-semibold text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 transition-colors px-2">Sign Out</button>
           <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${avatarColor} flex items-center justify-center text-white font-bold text-xs shadow-sm`}>{initials}</div>

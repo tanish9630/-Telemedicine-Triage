@@ -31,6 +31,20 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: function() { return this.role === 'doctor'; }
     },
+    location: {
+      lat: {
+        type: Number,
+        required: function() { return this.role === 'doctor'; }
+      },
+      lng: {
+        type: Number,
+        required: function() { return this.role === 'doctor'; }
+      },
+      address: {
+        type: String,
+        required: function() { return this.role === 'doctor'; }
+      }
+    },
     isVerified: {
       type: Boolean,
       default: false,

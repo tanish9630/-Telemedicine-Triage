@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import {
   Bell, TrendingUp, TrendingDown,
-  Video, Check, X, Clock, Trash2
+  Check, X, Clock, Trash2
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -250,53 +250,54 @@ export function DoctorDashboard() {
           </div>
 
           {/* Today's Schedule */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden transition-colors">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden transition-colors mb-6">
             <div className="p-5 border-b border-slate-100 dark:border-white/5 flex items-center justify-between transition-colors">
               <div>
-                <h3 className="font-bold text-slate-900 dark:text-white">Today's Schedule</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{todayAppts.length} {todayAppts.length === 1 ? 'appointment' : 'appointments'} today</p>
+                <h3 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-xs flex items-center">
+                  <Clock className="w-4 h-4 mr-2 text-indigo-500" /> Today's Schedule
+                </h3>
               </div>
-              <Link to="/doctor/calendar" className="text-sm text-indigo-600 dark:text-indigo-400 font-semibold hover:underline">View Calendar →</Link>
+              <Link to="/doctor/calendar" className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline">View Calendar →</Link>
             </div>
             {todayAppts.length === 0 ? (
-              <div className="p-10 text-center text-slate-400 text-sm">No appointments scheduled for today.</div>
+              <div className="p-10 text-center text-slate-400 text-sm italic">No appointments scheduled for today.</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-slate-50 dark:bg-white/5 text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wide transition-colors">
+                  <thead className="bg-slate-50 dark:bg-white/5 text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest transition-colors border-b border-slate-100 dark:border-white/10">
                     <tr>
-                      <th className="px-5 py-3 text-left">Patient</th>
-                      <th className="px-5 py-3 text-left">Time</th>
-                      <th className="px-5 py-3 text-left">Reason</th>
-                      <th className="px-5 py-3 text-left">Action</th>
+                      <th className="px-6 py-4 text-left">Patient</th>
+                      <th className="px-6 py-4 text-left">Time</th>
+                      <th className="px-6 py-4 text-left">Reason</th>
+                      <th className="px-6 py-4 text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50 dark:divide-white/5 transition-colors">
                     {todayAppts.map(a => (
-                      <tr key={a._id} className="hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors">
-                        <td className="px-5 py-4">
+                      <tr key={a._id} className="hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors group">
+                        <td className="px-6 py-4">
                           <div className="flex items-center">
-                            <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center text-indigo-700 dark:text-indigo-400 font-bold text-xs mr-3">
+                            <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-xs mr-3 border border-indigo-100 dark:border-indigo-500/20">
                               {a.patient.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2)}
                             </div>
                             <div>
-                              <div className="font-semibold text-slate-900 dark:text-white">{a.patient.fullName}</div>
-                              <div className="text-xs text-slate-500 dark:text-slate-400">{a.patient.email}</div>
+                              <div className="font-bold text-slate-900 dark:text-white text-sm">{a.patient.fullName}</div>
+                              <div className="text-[10px] text-slate-400 dark:text-slate-500 font-medium tracking-tight uppercase">{a.patient.email}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-5 py-4 text-slate-600 dark:text-slate-300 font-medium">
+                        <td className="px-6 py-4 text-slate-600 dark:text-slate-300 font-bold text-xs uppercase">
                           {new Date(a.dateTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                         </td>
-                        <td className="px-5 py-4 text-slate-500 dark:text-slate-400 max-w-xs truncate">{a.reason}</td>
-                        <td className="px-5 py-4 flex items-center gap-2">
+                        <td className="px-6 py-4 text-slate-500 dark:text-slate-400 max-w-xs truncate text-xs font-medium italic">"{a.reason}"</td>
+                        <td className="px-6 py-4 flex items-center justify-end gap-2">
                           {a.channelName && (
                             <Link to={`/consultation/${a.channelName}`}
-                              className="flex items-center text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-2 rounded-xl transition-colors w-fit shadow-sm">
-                              <Video className="w-3.5 h-3.5 mr-1.5" /> Join Call
+                              className="flex items-center text-[10px] uppercase font-black tracking-widest text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition-all shadow-md active:scale-95">
+                              Join Call
                             </Link>
                           )}
-                          <button onClick={() => handleDelete(a._id)} className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-colors" title="Delete Appointment">
+                          <button onClick={() => handleDelete(a._id)} className="p-2 text-slate-300 hover:text-rose-500 dark:text-slate-600 dark:hover:text-rose-400 transition-colors" title="Delete Appointment">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </td>
@@ -306,6 +307,80 @@ export function DoctorDashboard() {
                 </table>
               </div>
             )}
+          </div>
+
+          {/* Excel-style Patient Status Tracker */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden transition-colors">
+            <div className="p-5 border-b border-slate-100 dark:border-white/5 flex items-center justify-between bg-slate-50/30 dark:bg-white/5 transition-colors">
+              <div>
+                <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-widest text-xs flex items-center">
+                  <TrendingUp className="w-4 h-4 mr-2 text-emerald-500" /> Patient Progress Tracker (Excel View)
+                </h3>
+              </div>
+              <div className="flex items-center space-x-2">
+                 <div className="px-2 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold rounded-md border border-emerald-100 dark:border-emerald-500/20">AUTO-SAVING</div>
+              </div>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead className="bg-white dark:bg-slate-900 text-[10px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-widest transition-colors border-b border-slate-200 dark:border-white/10">
+                  <tr>
+                    <th className="px-6 py-4 text-left border-r border-slate-100 dark:border-white/5 w-16">#</th>
+                    <th className="px-6 py-4 text-left border-r border-slate-100 dark:border-white/5">Patient Name</th>
+                    <th className="px-6 py-4 text-left border-r border-slate-100 dark:border-white/5">Department</th>
+                    <th className="px-6 py-4 text-left border-r border-slate-100 dark:border-white/5">Last Visit</th>
+                    <th className="px-6 py-4 text-center">Treatment Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-white/5 transition-colors">
+                  {[
+                    { id: '1024', name: 'John Cooper', dept: 'Cardiology', date: '20 Mar 2024', done: true },
+                    { id: '1025', name: 'Sarah Smith', dept: 'Dermatology', date: '21 Mar 2024', done: false },
+                    { id: '1026', name: 'Robert Brown', dept: 'General', date: '22 Mar 2024', done: true },
+                    { id: '1027', name: 'Emily Davis', dept: 'Neurology', date: '24 Mar 2024', done: false },
+                    { id: '1028', name: 'Michael Wilson', dept: 'Pediatrics', date: '25 Mar 2024', done: false },
+                  ].map((p) => (
+                    <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group border-b border-slate-100 dark:border-white/5 last:border-0">
+                      <td className="px-6 py-4 text-[11px] font-bold text-slate-400 dark:text-slate-600 border-r border-slate-100 dark:border-white/5 tabular-nums">{p.id}</td>
+                      <td className="px-6 py-4 border-r border-slate-100 dark:border-white/5">
+                        <div className="font-bold text-slate-800 dark:text-slate-200 text-sm">{p.name}</div>
+                      </td>
+                      <td className="px-6 py-4 border-r border-slate-100 dark:border-white/5 text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-tight">
+                        {p.dept}
+                      </td>
+                      <td className="px-6 py-4 border-r border-slate-100 dark:border-white/5 text-xs text-slate-500 dark:text-slate-400 font-medium tabular-nums">
+                        {p.date}
+                      </td>
+                      <td className="px-6 py-4 text-center bg-slate-50/50 dark:bg-white/5 transition-colors">
+                        <div className="flex items-center justify-center space-x-3">
+                          <button className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+                            p.done 
+                            ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' 
+                            : 'bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-white/10 opacity-50'
+                          }`}>
+                            {p.done && <Check className="w-3 h-3" />}
+                            <span>Done</span>
+                          </button>
+                          <button className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+                            !p.done 
+                            ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' 
+                            : 'bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-white/10 opacity-50'
+                          }`}>
+                            {!p.done && <X className="w-3 h-3" />}
+                            <span>Undone</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="p-4 bg-slate-50 dark:bg-white/5 flex items-center justify-between text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
+              <span>Grid Visualization Mode • v1.0</span>
+              <span>Showing 5 of 128 Entries</span>
+            </div>
           </div>
         </main>
     </div>
